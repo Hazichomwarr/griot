@@ -4,13 +4,18 @@ import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { router } from "expo-router";
 import { useRef } from "react";
 import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function App() {
+  const insets = useSafeAreaInsets();
+  const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
+
   const recordings = useRecordingStore((s) => s.recordings);
   const setActive = useRecordingStore((s) => s.setActive);
 
   console.log("recordings:", recordings);
-  const { height } = Dimensions.get("window");
 
   // async function play(uri: string) {
   //   const { sound } = await Audio.Sound.createAsync({ uri });
@@ -25,12 +30,17 @@ export default function App() {
   // }
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
-      setActive(viewableItems[0].item.id);
+      const middleIndex = Math.floor(viewableItems.length / 2);
+      const item = viewableItems[middleIndex]?.item;
+
+      if (item?.id) {
+        setActive(item.id);
+      }
     }
   });
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
   return (
-    <View>
+    <View className="flex-1">
       <FlatList
         data={recordings}
         keyExtractor={(item) => item.id}
@@ -42,16 +52,16 @@ export default function App() {
         onViewableItemsChanged={onViewableItemsChanged.current}
         viewabilityConfig={viewabilityConfig.current}
         getItemLayout={(_, index) => ({
-          length: height,
-          offset: height * index,
+          length: usableHeight,
+          offset: usableHeight * index,
           index,
         })}
       />
       <Pressable
         onPress={() => router.push("/record")}
-        className="mt-4 bg-black px-4 py-2 rounded"
+        className="absolute bottom-10 self-center bg-black px-6 py-3 rounded-full"
       >
-        <Text className="text-white">Go to Record</Text>
+        <Text className="text-white text-xl p-2 rounded-xl">🎤 Record</Text>
       </Pressable>
     </View>
   );

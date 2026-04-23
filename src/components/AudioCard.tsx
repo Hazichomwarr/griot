@@ -2,9 +2,29 @@ import { safeAudioCleanup } from "@/lib/safeAudioCleanup";
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, Text, View } from "react-native";
-import { useRecordingStore } from "../store/useRecordingStore";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  AudioPost,
+  Category,
+  useRecordingStore,
+} from "../store/useRecordingStore";
 
-export default function AudioCard({ item }: any) {
+const categoryMap: Record<Category, string> = {
+  social: "😂",
+  security: "🚨",
+  vente: "🛒",
+};
+
+type Props = {
+  item: AudioPost;
+};
+
+const SCREEN_HEIGHT = Dimensions.get("window").height;
+
+export default function AudioCard({ item }: Props) {
+  const insets = useSafeAreaInsets();
+  const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
+
   const activeId = useRecordingStore((s) => s.activeId);
   const soundRef = useRef<Audio.Sound | null>(null);
 
@@ -28,7 +48,9 @@ export default function AudioCard({ item }: any) {
           setProgress(status.positionMillis / status.durationMillis);
         }
         if (status.didJustFinish) {
-          sound.unloadAsync();
+          //   sound.unloadAsync(); don't destroy it
+          setIsPlaying(false);
+          setProgress(0);
         }
       });
       await sound.playAsync();
@@ -59,41 +81,61 @@ export default function AudioCard({ item }: any) {
     if (status.isPlaying) {
       await soundRef.current.pauseAsync();
     } else {
+      //if finished -> restart from 0
+      if (status.positionMillis === status.durationMillis) {
+        await soundRef.current.setPositionAsync(0);
+      }
       await soundRef.current.playAsync();
     }
   }
-  const { height } = Dimensions.get("window");
 
   return (
     <Pressable
       onPress={togglePlay}
-      style={{ height }}
-      className="flex-1 justify-center items-center bg-black/50 mb-4 rounded"
+      style={{ height: usableHeight }}
+      className="bg-black justify-between p-6"
     >
-      <Text className="text-white mb-4">
-        {isPlaying ? "Playing" : "Paused"}
-      </Text>
-
-      {/* Avatar placeholder */}
-      <View className="w-32 h-32 bg-gray-600 rounded-full mb-6" />
-
-      {/* Waveform */}
-      <View className="flex-row gap-[2px] mt-2">
-        {[...Array(25)].map((_, i) => (
-          <View
-            key={i}
-            className="w-[2px] bg-white"
-            style={{ height: Math.random() * 20 + 5 }}
-          />
-        ))}
+      {/* TOP: identity */}
+      <View className="flex-row items-center gap-3">
+        <View className="w-12 h-12 rounded-full bg-gray-500" />
+        <View>
+          <Text className="text-white font-bold">{item.username}</Text>
+          <Text className="text-gray-300 text-sm">{item.neighborhood}</Text>
+          <Text className="text-gray-300 text-sm">{item.town}</Text>
+          <Text>
+            {categoryMap[item.category]} #{item.category}
+          </Text>
+        </View>
       </View>
 
-      {/* Progress bar */}
-      <View className="w-3/4 h-1 bg-gray-700 rounded">
-        <View
-          className="h-1 bg-white rounded"
-          style={{ width: `${progress * 100}%` }}
-        />
+      {/* CENTER: avatar */}
+      <View className="items-center">
+        <View className="w-40 h-40 bg-gray-600 rounded-full mb-6" />
+
+        {/* waveform */}
+        <View className="flex-row gap-[2px] mb-6">
+          {[...Array(30)].map((_, i) => (
+            <View
+              key={i}
+              className="w-[2px] bg-white"
+              style={{ height: Math.random() * 30 + 10 }}
+            />
+          ))}
+        </View>
+
+        <Text className="text-white">{isPlaying ? "Playing" : "Paused"}</Text>
+      </View>
+
+      {/* BOTTOM: category + progress */}
+      <View>
+        <Text className="text-white  ml-2">#{item.category.toUpperCase()}</Text>
+
+        <View className="mb-10 w-full h-1 bg-gray-700 rounded">
+          <View
+            className="h-1 bg-white rounded"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </View>
       </View>
     </Pressable>
   );
