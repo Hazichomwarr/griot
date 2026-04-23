@@ -18,6 +18,9 @@ export default function Record() {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        interruptionModeIOS: 1,
+        shouldDuckAndroid: true,
       });
 
       const { recording } = await Audio.Recording.createAsync(

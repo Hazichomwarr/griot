@@ -17,6 +17,7 @@ export default function AudioCard({ item }: any) {
       const { sound } = await Audio.Sound.createAsync({
         uri: item.uri,
       });
+      await sound.setVolumeAsync(1.0); // max volume;
       soundRef.current = sound;
 
       sound.setOnPlaybackStatusUpdate((status) => {
