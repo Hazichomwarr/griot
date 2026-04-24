@@ -20,7 +20,8 @@ type Store = {
   recordings: AudioPost[];
   activeId: string | null;
   setActive: (id: string) => void;
-  addRecording: (uri: string) => void;
+  addRecording: (uri: string) => AudioPost;
+  deleteRecording: (id: string) => void;
 };
 
 export const useRecordingStore = create<Store>((set) => ({
@@ -29,19 +30,23 @@ export const useRecordingStore = create<Store>((set) => ({
 
   setActive: (id) => set({ activeId: id }),
 
-  addRecording: (uri) =>
+  addRecording: (uri) => {
+    const newItem: AudioPost = {
+      id: Date.now().toString(),
+      uri,
+      username: "Hamza", // temp
+      avatar: "https://i.pravatar.cc/150?img=1",
+      neighborhood: "Karpala",
+      town: "Ouagadougou",
+      category: "social",
+    };
     set((state) => ({
-      recordings: [
-        {
-          id: Date.now().toString(),
-          uri,
-          username: "Hamza", // temp
-          avatar: "https://i.pravatar.cc/150?img=1",
-          neighborhood: "Karpala",
-          town: "Ouagadougou",
-          category: "social",
-        },
-        ...state.recordings,
-      ],
+      recordings: [newItem, ...state.recordings],
+    }));
+    return newItem;
+  },
+  deleteRecording: (id) =>
+    set((state) => ({
+      recordings: state.recordings.filter((r) => r.id !== id),
     })),
 }));

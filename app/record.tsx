@@ -5,23 +5,34 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type Mode = "idle" | "recording" | "review";
+type Mode = "idle" | "recording";
 
 export default function Record() {
   const insets = useSafeAreaInsets();
+
+  const setActive = useRecordingStore((s) => s.setActive);
+  useEffect(() => {
+    // stop all feed audio when entering record screen
+    setActive("");
+  }, []);
+
   const addRecording = useRecordingStore((s) => s.addRecording);
+  const deleteRecording = useRecordingStore((s) => s.deleteRecording);
 
   const [mode, setMode] = useState<Mode>("idle");
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
-
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [recordedUri, setRecordedUri] = useState<string | null>(null);
 
+  // const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
   const intervalRef = useRef<any>(null);
 
-  // 🎙 START
+  // const [sound, setSound] = useState<Audio.Sound | null>(null);
+  // const [recordedUri, setRecordedUri] = useState<string | null>(null);
+
+  const [justPosted, setJustPosted] = useState(false);
+  const [lastPostedId, setLastPostedId] = useState<string | null>(null);
+
+  // 🎙 START RECORDING
   async function startRecording() {
     try {
       const permission = await Audio.requestPermissionsAsync();
@@ -30,9 +41,9 @@ export default function Record() {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        interruptionModeIOS: 1,
-        shouldDuckAndroid: true,
+        // staysActiveInBackground: false,
+        // interruptionModeIOS: 1,
+        // shouldDuckAndroid: true,
       });
 
       const { recording } = await Audio.Recording.createAsync(
@@ -42,7 +53,7 @@ export default function Record() {
       setRecording(recording);
       setMode("recording");
 
-      //start timer After recording starts
+      // timer when recording starts
       intervalRef.current = setInterval(async () => {
         const status = await recording.getStatusAsync();
         if (status.isRecording) {
@@ -54,7 +65,7 @@ export default function Record() {
     }
   }
 
-  // ⏹ STOP
+  // ⏹ STOP + AUTO POST
   async function stopRecording() {
     if (!recording) return;
 
@@ -62,61 +73,40 @@ export default function Record() {
 
     await recording.stopAndUnloadAsync();
     const uri = recording.getURI();
-    setRecordedUri(uri); // This is the source of truth
 
     setRecording(null);
+    setMode("idle");
 
     if (uri) {
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      setSound(sound);
+      const newPost = addRecording(uri);
+      setLastPostedId(newPost.id);
 
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
-        setIsPlaying(status.isPlaying);
-      });
+      // feedback
+      setJustPosted(true);
+
+      setTimeout(() => {
+        setJustPosted(false);
+      }, 5000);
     }
-    setMode("review");
-  }
-
-  // ▶ PLAYBACK
-  async function togglePlayback() {
-    if (!sound) return;
-
-    const status = await sound.getStatusAsync();
-    if (!status.isLoaded) return;
-
-    if (status.isPlaying) {
-      await sound.pauseAsync();
-      setIsPlaying(false);
-    } else {
-      if (status.positionMillis === status.durationMillis) {
-        await sound.setPositionAsync(0);
-      }
-      await sound.playAsync();
-      setIsPlaying(true);
-    }
-  }
-
-  // ✅ POST
-  async function handlePost() {
-    if (!sound) return;
-
-    if (!recordedUri) return;
-    addRecording(recordedUri);
-
-    setMode("idle");
     setDuration(0);
-    setRecordedUri(null);
+  }
 
-    sound.unloadAsync();
-    setSound(null);
+  // 🔁 REDO
+  function handleRedo() {
+    if (lastPostedId) {
+      deleteRecording(lastPostedId);
+    }
+    setJustPosted(false);
+
+    // Restart immediately
+    if (recording) return; // prevent double recording
+    startRecording();
   }
 
   //cleanup
   useEffect(() => {
     return () => {
       clearInterval(intervalRef.current);
-      sound?.unloadAsync().catch(() => {});
     };
   }, []);
 
@@ -128,59 +118,55 @@ export default function Record() {
   return (
     <View
       className="flex-1 bg-black justify-between px-6"
-      style={{ paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }}
+      // style={{
+      //   paddingTop: insets.top + 20,
+      //   paddingBottom: insets.bottom + 20,
+      // }}
     >
       {/* TOP */}
       <View>
         <Text className="text-white text-lg font-semibold">Your voice</Text>
         <Text className="text-neutral-400 text-sm">
-          {mode === "idle" && "Say anything. Someone might need it."}
-          {mode === "recording" && "Recording..."}
-          {mode === "review" && "Listen before sharing"}
+          {mode === "idle" && "Hold to speak"}
+          {mode === "recording" && "Release to share"}
         </Text>
       </View>
-
       {/* CENTER */}
-      <View className="items-center">
+      <View className="flex-1 items-center justify-center">
         <Pressable
-          onPress={
-            mode === "idle"
-              ? startRecording
-              : mode === "recording"
-                ? stopRecording
-                : togglePlayback
-          }
-          className="w-32 h-32 rounded-full bg-neutral-800 items-center justify-center mb-8"
+          onPressIn={() => {
+            if (mode === "idle") startRecording();
+          }}
+          onPressOut={() => {
+            if (mode === "recording") stopRecording();
+          }}
+          // className="w-32 h-32 rounded-full bg-neutral-800 items-center justify-center mb-6"
+          className={`w-32 h-32 rounded-full items-center justify-center ${
+            mode === "recording" ? "bg-red-600" : "bg-neutral-800"
+          }`}
         >
           <Text className="text-white text-3xl">
-            {mode === "idle" && "🎤"}
-            {mode === "recording" && "⏹"}
-            {mode === "review" && (isPlaying ? "⏸" : "▶")}
+            {mode === "recording" ? "🔴" : "🎤"}
           </Text>
         </Pressable>
 
-        {mode !== "idle" && (
-          <Text className="text-white text-xl">{format(duration)}</Text>
+        {mode === "recording" && (
+          <Text className="text-white text-xl mt-4">{format(duration)}</Text>
         )}
       </View>
 
-      {/* BOTTOM */}
-      <View className="items-center gap-4 min-h-[100px] justify-end">
-        {mode === "review" && (
-          <>
-            <Pressable
-              onPress={handlePost}
-              className="bg-white/10 border border-white/20 px-6 py-3 rounded-full"
-            >
-              <Text className="text-white">Share voice</Text>
-            </Pressable>
+      {/* FEEDBACK OVERLAY */}
+      {justPosted && (
+        <View className="absolute bottom-24 self-center bg-black/80 px-6 py-4 rounded-xl">
+          <Text className="text-white text-center mb-2">
+            ✅ Your voice is live
+          </Text>
 
-            <Pressable onPress={() => setMode("idle")} className="px-6 py-2">
-              <Text className="text-neutral-400">Discard</Text>
-            </Pressable>
-          </>
-        )}
-      </View>
+          <Pressable onPress={handleRedo}>
+            <Text className="text-blue-400 text-center">Redo</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
