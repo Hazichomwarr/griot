@@ -20,7 +20,7 @@ type Store = {
   recordings: AudioPost[];
   activeId: string | null;
   setActive: (id: string) => void;
-  addRecording: (uri: string) => AudioPost;
+  addRecording: (uri: string, category: Category) => AudioPost;
   deleteRecording: (id: string) => void;
 };
 
@@ -30,7 +30,7 @@ export const useRecordingStore = create<Store>((set) => ({
 
   setActive: (id) => set({ activeId: id }),
 
-  addRecording: (uri) => {
+  addRecording: (uri, category) => {
     const newItem: AudioPost = {
       id: Date.now().toString(),
       uri,
@@ -38,7 +38,7 @@ export const useRecordingStore = create<Store>((set) => ({
       avatar: "https://i.pravatar.cc/150?img=1",
       neighborhood: "Karpala",
       town: "Ouagadougou",
-      category: "social",
+      category,
     };
     set((state) => ({
       recordings: [newItem, ...state.recordings],

@@ -1,11 +1,39 @@
 // app/record.tsx
-import { useRecordingStore } from "@/src/store/useRecordingStore";
+import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Mode = "idle" | "recording";
+
+type Categories = {
+  key: Category;
+  emoji: string;
+  description: string;
+  bgColor?: string;
+};
+
+const CATEGORIES: Categories[] = [
+  {
+    key: "social",
+    emoji: "😂",
+    description: "Social-contes",
+    bgColor: "bg-black",
+  },
+  {
+    key: "security",
+    emoji: "🚨",
+    description: "Urgences",
+    bgColor: "bg-red-900/20",
+  },
+  {
+    key: "vente",
+    emoji: "🛒",
+    description: "Vente-achats",
+    bgColor: "bg-gren-900/20",
+  },
+];
 
 export default function Record() {
   const insets = useSafeAreaInsets();
@@ -22,12 +50,10 @@ export default function Record() {
   const [mode, setMode] = useState<Mode>("idle");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
-  // const [isPlaying, setIsPlaying] = useState(false);
+  const [category, setCategory] = useState<Category>("social");
+
   const [duration, setDuration] = useState(0);
   const intervalRef = useRef<any>(null);
-
-  // const [sound, setSound] = useState<Audio.Sound | null>(null);
-  // const [recordedUri, setRecordedUri] = useState<string | null>(null);
 
   const [justPosted, setJustPosted] = useState(false);
   const [lastPostedId, setLastPostedId] = useState<string | null>(null);
@@ -78,7 +104,7 @@ export default function Record() {
     setMode("idle");
 
     if (uri) {
-      const newPost = addRecording(uri);
+      const newPost = addRecording(uri, category);
       setLastPostedId(newPost.id);
 
       // feedback
@@ -86,7 +112,7 @@ export default function Record() {
 
       setTimeout(() => {
         setJustPosted(false);
-      }, 5000);
+      }, 3000);
     }
     setDuration(0);
   }
@@ -119,18 +145,38 @@ export default function Record() {
     <View
       className="flex-1 bg-black justify-between px-6"
       // style={{
-      //   paddingTop: insets.top + 20,
-      //   paddingBottom: insets.bottom + 20,
+      //   paddingTop: insets.top + 5,
+      //   paddingBottom: insets.bottom + 5,
       // }}
     >
       {/* TOP */}
-      <View>
-        <Text className="text-white text-lg font-semibold">Your voice</Text>
-        <Text className="text-neutral-400 text-sm">
-          {mode === "idle" && "Hold to speak"}
-          {mode === "recording" && "Release to share"}
+      <View className="mx-auto">
+        <Text className="text-white text-2xl font-semibold">
+          Partage ta voix
         </Text>
       </View>
+
+      <View className="mt-10 flex-row justify-center gap-4 mb-6">
+        {CATEGORIES.map((c: Categories) => (
+          <Pressable
+            key={c.key}
+            onPress={() => setCategory(c.key)}
+            className={`px-4 py-2 rounded-full ${
+              category === c.key ? "bg-white" : "bg-white/10"
+            }`}
+          >
+            <View className="items-center">
+              <Text className="text-lg">{c.emoji}</Text>
+              <Text
+                className={`text-xs text-white font-semibold ${category === c.key && "text-black"}`}
+              >
+                {c.description}
+              </Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+
       {/* CENTER */}
       <View className="flex-1 items-center justify-center">
         <Pressable
@@ -150,6 +196,11 @@ export default function Record() {
           </Text>
         </Pressable>
 
+        <Text className="text-neutral-400 text-sm">
+          {mode === "idle" && "Maintenez pour parler"}
+          {mode === "recording" && "Relachez pour publier"}
+        </Text>
+
         {mode === "recording" && (
           <Text className="text-white text-xl mt-4">{format(duration)}</Text>
         )}
@@ -159,11 +210,11 @@ export default function Record() {
       {justPosted && (
         <View className="absolute bottom-24 self-center bg-black/80 px-6 py-4 rounded-xl">
           <Text className="text-white text-center mb-2">
-            ✅ Your voice is live
+            ✅ Ta voix est publiée
           </Text>
 
           <Pressable onPress={handleRedo}>
-            <Text className="text-blue-400 text-center">Redo</Text>
+            <Text className="text-blue-400 text-center">Remplacer</Text>
           </Pressable>
         </View>
       )}

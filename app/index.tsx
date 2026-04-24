@@ -17,17 +17,6 @@ export default function App() {
 
   console.log("recordings:", recordings);
 
-  // async function play(uri: string) {
-  //   const { sound } = await Audio.Sound.createAsync({ uri });
-  //   await sound.replayAsync();
-
-  //   // cleanup after playback
-  //   sound.setOnPlaybackStatusUpdate((status) => {
-  //     if (status.isLoaded && status.didJustFinish) {
-  //       sound.unloadAsync();
-  //     }
-  //   });
-  // }
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (!viewableItems.length) return;
 

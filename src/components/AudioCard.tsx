@@ -15,6 +15,11 @@ const categoryMap: Record<Category, string> = {
   security: "🚨",
   vente: "🛒",
 };
+const bgMap = {
+  social: "bg-black",
+  security: "bg-red-900/20",
+  vente: "bg-green-900/20",
+};
 
 type Props = {
   item: AudioPost;
@@ -91,54 +96,6 @@ export default function AudioCard({ item }: Props) {
   }
 
   return (
-    // <Pressable
-    //   onPress={togglePlay}
-    //   style={{ height: usableHeight }}
-    //   className="bg-black justify-between p-6"
-    // >
-    //   {/* TOP: identity */}
-    //   <View className="flex-row items-center gap-3">
-    //     <View className="w-12 h-12 rounded-full bg-gray-500" />
-    //     <View>
-    //       <Text className="text-white font-bold">{item.username}</Text>
-    //       <Text className="text-gray-300 text-sm">{item.neighborhood}</Text>
-    //       <Text className="text-gray-300 text-sm">{item.town}</Text>
-    //       <Text>
-    //         {categoryMap[item.category]} #{item.category}
-    //       </Text>
-    //     </View>
-    //   </View>
-
-    //   {/* CENTER: avatar */}
-    //   <View className="items-center">
-    //     <View className="w-40 h-40 bg-gray-600 rounded-full mb-6" />
-
-    //     {/* waveform */}
-    //     <View className="flex-row gap-[2px] mb-6">
-    //       {[...Array(30)].map((_, i) => (
-    //         <View
-    //           key={i}
-    //           className="w-[2px] bg-white"
-    //           style={{ height: Math.random() * 30 + 10 }}
-    //         />
-    //       ))}
-    //     </View>
-
-    //     <Text className="text-white">{isPlaying ? "Playing" : "Paused"}</Text>
-    //   </View>
-
-    //   {/* BOTTOM: category + progress */}
-    //   <View>
-    //     <Text className="text-white  ml-2">#{item.category.toUpperCase()}</Text>
-
-    //     <View className="mb-10 w-full h-1 bg-gray-700 rounded">
-    //       <View
-    //         className="h-1 bg-white rounded"
-    //         style={{ width: `${progress * 100}%` }}
-    //       />
-    //     </View>
-    //   </View>
-    // </Pressable>
     <Pressable
       onPress={togglePlay}
       style={{ height: usableHeight }}
@@ -150,6 +107,15 @@ export default function AudioCard({ item }: Props) {
           {item.neighborhood}
         </Text>
         <Text className="text-neutral-400 text-sm">{item.town}</Text>
+
+        {/* 👉 CATEGORY BADGE */}
+        <View
+          className={`ml-auto bg-white/10 px-3 py-1 rounded-full ${bgMap[item.category]}`}
+        >
+          <Text className="text-white text-sm">
+            {categoryMap[item.category]} {item.category}
+          </Text>
+        </View>
       </View>
 
       {/* CENTER — premium listening zone */}
