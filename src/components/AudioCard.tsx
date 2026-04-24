@@ -1,3 +1,4 @@
+// src/components/AudioCard.tsx
 import { safeAudioCleanup } from "@/lib/safeAudioCleanup";
 import { Audio } from "expo-av";
 import { useEffect, useRef, useState } from "react";
@@ -37,7 +38,7 @@ export default function AudioCard({ item }: Props) {
       const { sound } = await Audio.Sound.createAsync({
         uri: item.uri,
       });
-      await sound.setVolumeAsync(1.0); // max volume;
+      //   await sound.setVolumeAsync(1.0); // max volume;
       soundRef.current = sound;
 
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -90,52 +91,86 @@ export default function AudioCard({ item }: Props) {
   }
 
   return (
+    // <Pressable
+    //   onPress={togglePlay}
+    //   style={{ height: usableHeight }}
+    //   className="bg-black justify-between p-6"
+    // >
+    //   {/* TOP: identity */}
+    //   <View className="flex-row items-center gap-3">
+    //     <View className="w-12 h-12 rounded-full bg-gray-500" />
+    //     <View>
+    //       <Text className="text-white font-bold">{item.username}</Text>
+    //       <Text className="text-gray-300 text-sm">{item.neighborhood}</Text>
+    //       <Text className="text-gray-300 text-sm">{item.town}</Text>
+    //       <Text>
+    //         {categoryMap[item.category]} #{item.category}
+    //       </Text>
+    //     </View>
+    //   </View>
+
+    //   {/* CENTER: avatar */}
+    //   <View className="items-center">
+    //     <View className="w-40 h-40 bg-gray-600 rounded-full mb-6" />
+
+    //     {/* waveform */}
+    //     <View className="flex-row gap-[2px] mb-6">
+    //       {[...Array(30)].map((_, i) => (
+    //         <View
+    //           key={i}
+    //           className="w-[2px] bg-white"
+    //           style={{ height: Math.random() * 30 + 10 }}
+    //         />
+    //       ))}
+    //     </View>
+
+    //     <Text className="text-white">{isPlaying ? "Playing" : "Paused"}</Text>
+    //   </View>
+
+    //   {/* BOTTOM: category + progress */}
+    //   <View>
+    //     <Text className="text-white  ml-2">#{item.category.toUpperCase()}</Text>
+
+    //     <View className="mb-10 w-full h-1 bg-gray-700 rounded">
+    //       <View
+    //         className="h-1 bg-white rounded"
+    //         style={{ width: `${progress * 100}%` }}
+    //       />
+    //     </View>
+    //   </View>
+    // </Pressable>
     <Pressable
       onPress={togglePlay}
       style={{ height: usableHeight }}
-      className="bg-black justify-between p-6"
+      className="bg-black justify-between px-6 py-10"
     >
-      {/* TOP: identity */}
-      <View className="flex-row items-center gap-3">
-        <View className="w-12 h-12 rounded-full bg-gray-500" />
-        <View>
-          <Text className="text-white font-bold">{item.username}</Text>
-          <Text className="text-gray-300 text-sm">{item.neighborhood}</Text>
-          <Text className="text-gray-300 text-sm">{item.town}</Text>
-          <Text>
-            {categoryMap[item.category]} #{item.category}
-          </Text>
-        </View>
-      </View>
-
-      {/* CENTER: avatar */}
-      <View className="items-center">
-        <View className="w-40 h-40 bg-gray-600 rounded-full mb-6" />
-
-        {/* waveform */}
-        <View className="flex-row gap-[2px] mb-6">
-          {[...Array(30)].map((_, i) => (
-            <View
-              key={i}
-              className="w-[2px] bg-white"
-              style={{ height: Math.random() * 30 + 10 }}
-            />
-          ))}
-        </View>
-
-        <Text className="text-white">{isPlaying ? "Playing" : "Paused"}</Text>
-      </View>
-
-      {/* BOTTOM: category + progress */}
+      {/* TOP — minimal identity */}
       <View>
-        <Text className="text-white  ml-2">#{item.category.toUpperCase()}</Text>
+        <Text className="text-white text-lg font-semibold">
+          {item.neighborhood}
+        </Text>
+        <Text className="text-neutral-400 text-sm">{item.town}</Text>
+      </View>
 
-        <View className="mb-10 w-full h-1 bg-gray-700 rounded">
+      {/* CENTER — premium listening zone */}
+      <View className="items-center">
+        {/* subtle pulse instead of fake waveform */}
+        <View className="w-32 h-32 rounded-full bg-neutral-800 items-center justify-center mb-8">
+          <Text className="text-white text-3xl">{isPlaying ? "⏸" : "▶"}</Text>
+        </View>
+
+        {/* progress bar */}
+        <View className="w-full h-[2px] bg-neutral-800 rounded-full overflow-hidden">
           <View
-            className="h-1 bg-white rounded"
+            className="h-full bg-white"
             style={{ width: `${progress * 100}%` }}
           />
         </View>
+      </View>
+
+      {/* BOTTOM — category (light touch) */}
+      <View>
+        <Text className="text-neutral-500 text-xs">#{item.category}</Text>
       </View>
     </Pressable>
   );

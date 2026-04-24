@@ -29,13 +29,11 @@ export default function App() {
   //   });
   // }
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems.length > 0) {
-      const middleIndex = Math.floor(viewableItems.length / 2);
-      const item = viewableItems[middleIndex]?.item;
+    if (!viewableItems.length) return;
 
-      if (item?.id) {
-        setActive(item.id);
-      }
+    const item = viewableItems[0]?.item;
+    if (item?.id) {
+      setActive(item.id);
     }
   });
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
@@ -59,7 +57,7 @@ export default function App() {
       />
       <Pressable
         onPress={() => router.push("/record")}
-        className="absolute bottom-10 self-center bg-black px-6 py-3 rounded-full"
+        className="absolute bottom-10 self-center bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/20"
       >
         <Text className="text-white text-xl p-2 rounded-xl">🎤 Record</Text>
       </Pressable>
