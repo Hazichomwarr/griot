@@ -1,12 +1,13 @@
 // src/components/AudioCard.tsx
 import { safeAudioCleanup } from "@/lib/safeAudioCleanup";
 import { Audio } from "expo-av";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Dimensions, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   AudioPost,
   Category,
+  Reactions,
   useRecordingStore,
 } from "../store/useRecordingStore";
 
@@ -23,56 +24,159 @@ const bgMap = {
 
 type Props = {
   item: AudioPost;
+  nextItem?: AudioPost;
+  sharedNextSoundRef: React.MutableRefObject<Audio.Sound | null>;
 };
+
+const emojis: (keyof Reactions)[] = ["😂", "🚨", "👍"];
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-export default function AudioCard({ item }: Props) {
+export default function AudioCard({
+  item,
+  nextItem,
+  sharedNextSoundRef,
+}: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
   const activeId = useRecordingStore((s) => s.activeId);
+  const addReaction = useRecordingStore((s) => s.addReaction);
+
   const soundRef = useRef<Audio.Sound | null>(null);
+  const nextSoundRef = sharedNextSoundRef; //for preloading
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  // async function handlePlayback() {
+  //   if (activeId === item.id && !soundRef.current) {
+
+  //     const { sound } = await Audio.Sound.createAsync(
+  //       { uri: item.uri },
+  //       { shouldPlay: true },
+  //     );
+  //     soundRef.current = sound;
+
+  //     sound.setOnPlaybackStatusUpdate((status) => {
+  //       if (!status.isLoaded) return;
+  //       setIsPlaying(status.isPlaying);
+
+  //       if (status.durationMillis) {
+  //         setProgress(status.positionMillis / status.durationMillis);
+  //       }
+  //       if (status.didJustFinish) {
+  //         //   sound.unloadAsync(); don't destroy it
+  //         setIsPlaying(false);
+  //         setProgress(0);
+  //       }
+  //     });
+  //     // Preload next audio
+  //     if (nextItem && !nextSoundRef.current) {
+  //       const { sound } = await Audio.Sound.createAsync(
+  //         { uri: nextItem.uri },
+  //         { shouldPlay: false },
+  //       );
+  //       nextSoundRef.current = sound;
+  //     }
+  //     await sound.playAsync();
+  //   } else {
+  //     if (soundRef.current) {
+  //       await safeAudioCleanup(soundRef.current); //use  safeAudioCleanup helper to avoid Race consition between UI and async system.
+  //       soundRef.current = null;
+  //     }
+  //     if (nextSoundRef.current) {
+  //       await nextSoundRef.current.unloadAsync();
+  //       nextSoundRef.current = null;
+  //     }
+  //   }
+  // }
+
   async function handlePlayback() {
-    // if (!item?.uri) return;
-    if (activeId === item.id) {
-      const { sound } = await Audio.Sound.createAsync({
-        uri: item.uri,
-      });
-      //   await sound.setVolumeAsync(1.0); // max volume;
-      soundRef.current = sound;
+    try {
+      // 👉 ACTIVE CARD
+      if (activeId === item.id) {
+        // 🎧 PLAY CURRENT (reuse preload if available)
+        if (!soundRef.current) {
+          let sound: Audio.Sound | null = null;
 
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
-        setIsPlaying(status.isPlaying);
+          // 1. Try to reuse preloaded sound
+          if (nextSoundRef.current) {
+            const preloaded = nextSoundRef.current;
+            const status = await preloaded.getStatusAsync();
 
-        if (status.durationMillis) {
-          setProgress(status.positionMillis / status.durationMillis);
+            if (status.isLoaded) {
+              sound = preloaded;
+              nextSoundRef.current = null;
+            }
+          }
+
+          // 2. Fallback → create fresh sound
+          if (!sound) {
+            const result = await Audio.Sound.createAsync(
+              { uri: item.uri },
+              { shouldPlay: false },
+            );
+            sound = result.sound;
+          }
+
+          soundRef.current = sound;
+
+          // 🎯 Attach listener ONCE
+          sound.setOnPlaybackStatusUpdate((status) => {
+            if (!status.isLoaded) return;
+
+            setIsPlaying(status.isPlaying);
+
+            if (status.durationMillis) {
+              setProgress(status.positionMillis / status.durationMillis);
+            }
+
+            if (status.didJustFinish) {
+              setIsPlaying(false);
+              setProgress(0);
+            }
+          });
+
+          // ▶️ Safe play
+          const status = await sound.getStatusAsync();
+          if (status.isLoaded) {
+            await sound.playAsync();
+          }
         }
-        if (status.didJustFinish) {
-          //   sound.unloadAsync(); don't destroy it
-          setIsPlaying(false);
-          setProgress(0);
+
+        // ⚡ PRELOAD NEXT (non-blocking)
+        if (nextItem && !nextSoundRef.current) {
+          Audio.Sound.createAsync({ uri: nextItem.uri }, { shouldPlay: false })
+            .then(({ sound }) => {
+              nextSoundRef.current = sound;
+            })
+            .catch(() => {});
         }
-      });
-      await sound.playAsync();
-    } else {
-      if (soundRef.current) {
-        await safeAudioCleanup(soundRef.current); //use  safeAudioCleanup helper to avoid Race consition between UI and async system.
       }
-      soundRef.current = null;
+
+      // 👉 NOT ACTIVE → CLEANUP
+      else {
+        if (soundRef.current) {
+          await safeAudioCleanup(soundRef.current);
+          soundRef.current = null;
+        }
+      }
+    } catch (err) {
+      console.log("handlePlayback error:", err);
     }
   }
 
   useEffect(() => {
     handlePlayback();
+
     return () => {
       if (soundRef.current) {
         soundRef.current.unloadAsync().catch(() => {});
+      }
+
+      if (nextSoundRef.current) {
+        nextSoundRef.current.unloadAsync().catch(() => {});
       }
     };
   }, [activeId]);
@@ -99,21 +203,19 @@ export default function AudioCard({ item }: Props) {
     <Pressable
       onPress={togglePlay}
       style={{ height: usableHeight }}
-      className="bg-black justify-between px-6 py-10"
+      className={`${bgMap[item.category]} justify-around px-6 py-10`}
     >
       {/* TOP — minimal identity */}
-      <View>
+      <View className="flex-row justify-between items-center">
         <Text className="text-white text-lg font-semibold">
           {item.neighborhood}
         </Text>
-        <Text className="text-neutral-400 text-sm">{item.town}</Text>
+        <Text className="ml-1 text-neutral-700 text-sm">({item.town})</Text>
 
         {/* 👉 CATEGORY BADGE */}
-        <View
-          className={`ml-auto bg-white/10 px-3 py-1 rounded-full ${bgMap[item.category]}`}
-        >
-          <Text className="text-white text-sm">
-            {categoryMap[item.category]} {item.category}
+        <View className="ml-auto bg-white/10 px-3 py-2 rounded-full">
+          <Text className="text-white font-semibold text-sm">
+            {item.category.toUpperCase()}
           </Text>
         </View>
       </View>
@@ -134,9 +236,25 @@ export default function AudioCard({ item }: Props) {
         </View>
       </View>
 
-      {/* BOTTOM — category (light touch) */}
-      <View>
-        <Text className="text-neutral-500 text-xs">#{item.category}</Text>
+      <View className="mt-6">
+        {/* Views */}
+        <Text className="text-gray-400 text-sm mb-3">{item.views} écoutes</Text>
+
+        {/* Reactions */}
+        <View className="flex-row justify-around items-center">
+          {emojis.map((emoji) => (
+            <Pressable
+              key={emoji}
+              onPress={() => addReaction(item.id, emoji)}
+              className="items-center"
+            >
+              <Text className="text-2xl">{emoji}</Text>
+              <Text className="text-gray-400 text-xs mt-1">
+                {item.reactions[emoji]}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
     </Pressable>
   );

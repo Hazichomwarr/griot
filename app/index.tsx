@@ -1,6 +1,7 @@
 // app/index.tsx
 import AudioCard from "@/src/components/AudioCard";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
+import { Audio } from "expo-av";
 import { router } from "expo-router";
 import { useRef } from "react";
 import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
@@ -14,6 +15,9 @@ export default function App() {
 
   const recordings = useRecordingStore((s) => s.recordings);
   const setActive = useRecordingStore((s) => s.setActive);
+  const incrementViews = useRecordingStore((s) => s.incrementViews);
+
+  const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
 
   console.log("recordings:", recordings);
 
@@ -23,6 +27,7 @@ export default function App() {
     const item = viewableItems[0]?.item;
     if (item?.id) {
       setActive(item.id);
+      incrementViews(item.id);
     }
   });
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
@@ -31,7 +36,13 @@ export default function App() {
       <FlatList
         data={recordings}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <AudioCard item={item} />}
+        renderItem={({ item, index }) => (
+          <AudioCard
+            item={item}
+            nextItem={recordings[index + 1]}
+            sharedNextSoundRef={sharedNextSoundRef}
+          />
+        )}
         pagingEnabled
         snapToAlignment="start"
         decelerationRate="fast"
@@ -46,7 +57,7 @@ export default function App() {
       />
       <Pressable
         onPress={() => router.push("/record")}
-        className="absolute bottom-10 self-center bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/20"
+        className="absolute top-2 self-center bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/20"
       >
         <Text className="text-white text-xl p-2 rounded-xl">🎤 Record</Text>
       </Pressable>

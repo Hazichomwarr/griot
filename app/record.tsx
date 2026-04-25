@@ -38,9 +38,9 @@ const CATEGORIES: Categories[] = [
 export default function Record() {
   const insets = useSafeAreaInsets();
 
+  // Stop all feed audio when entering record screen
   const setActive = useRecordingStore((s) => s.setActive);
   useEffect(() => {
-    // stop all feed audio when entering record screen
     setActive("");
   }, []);
 
@@ -144,10 +144,10 @@ export default function Record() {
   return (
     <View
       className="flex-1 bg-black justify-between px-6"
-      // style={{
-      //   paddingTop: insets.top + 5,
-      //   paddingBottom: insets.bottom + 5,
-      // }}
+      style={{
+        paddingTop: insets.top,
+        paddingBottom: insets.bottom,
+      }}
     >
       {/* TOP */}
       <View className="mx-auto">
@@ -162,13 +162,13 @@ export default function Record() {
             key={c.key}
             onPress={() => setCategory(c.key)}
             className={`px-4 py-2 rounded-full ${
-              category === c.key ? "bg-white" : "bg-white/10"
+              category === c.key ? "bg-neutral-100" : "bg-white/10"
             }`}
           >
             <View className="items-center">
               <Text className="text-lg">{c.emoji}</Text>
               <Text
-                className={`text-xs text-white font-semibold ${category === c.key && "text-black"}`}
+                className={`text-xs font-semibold ${category === c.key ? "text-black" : "text-white"}`}
               >
                 {c.description}
               </Text>
@@ -186,7 +186,6 @@ export default function Record() {
           onPressOut={() => {
             if (mode === "recording") stopRecording();
           }}
-          // className="w-32 h-32 rounded-full bg-neutral-800 items-center justify-center mb-6"
           className={`w-32 h-32 rounded-full items-center justify-center ${
             mode === "recording" ? "bg-red-600" : "bg-neutral-800"
           }`}
