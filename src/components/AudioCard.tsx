@@ -41,6 +41,14 @@ export default function AudioCard({
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
+  const stopAllAudioFlag = useRecordingStore((s) => s.stopAllAudioFlag);
+  useEffect(() => {
+    if (soundRef.current) {
+      safeAudioCleanup(soundRef.current);
+      soundRef.current = null;
+    }
+  }, [stopAllAudioFlag]);
+
   const setActive = useRecordingStore((s) => s.setActive);
   const activeId = useRecordingStore((s) => s.activeId);
   const addReaction = useRecordingStore((s) => s.addReaction);

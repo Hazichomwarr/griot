@@ -34,6 +34,9 @@ type Store = {
   recordings: AudioPost[];
   activeId: string | null;
 
+  stopAllAudioFlag: number;
+  triggerStopAllAudio: () => void;
+
   setActive: (id: string) => void;
   addRecording: (uri: string, category: Category) => AudioPost;
   deleteRecording: (id: string) => void;
@@ -45,6 +48,10 @@ type Store = {
 export const useRecordingStore = create<Store>((set) => ({
   recordings: [],
   activeId: null,
+  stopAllAudioFlag: 0,
+
+  triggerStopAllAudio: () =>
+    set((state) => ({ stopAllAudioFlag: state.stopAllAudioFlag + 1 })),
 
   setActive: (id) => set({ activeId: id }),
 

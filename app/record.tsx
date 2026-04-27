@@ -38,10 +38,11 @@ const CATEGORIES: Categories[] = [
 export default function Record() {
   const insets = useSafeAreaInsets();
 
+  const triggerStopAllAudio = useRecordingStore((s) => s.triggerStopAllAudio);
+
   // Stop all feed audio when entering record screen
-  const setActive = useRecordingStore((s) => s.setActive);
   useEffect(() => {
-    setActive("");
+    triggerStopAllAudio();
   }, []);
 
   const addRecording = useRecordingStore((s) => s.addRecording);
@@ -64,7 +65,8 @@ export default function Record() {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) return;
 
-      // if (a sound playing in the background) -> TODO: stop it
+      // stop all audio before recording
+      triggerStopAllAudio();
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
