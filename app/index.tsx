@@ -1,10 +1,11 @@
 // app/index.tsx
 import AudioCard from "@/src/components/AudioCard";
+import FloatingMic from "@/src/components/FloatingMic";
+import NowLiveToast from "@/src/components/NowLiveToast";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
-import { router } from "expo-router";
-import { useEffect, useRef } from "react";
-import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Dimensions, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -18,11 +19,21 @@ export default function App() {
   const setActive = useRecordingStore((s) => s.setActive);
   const incrementViews = useRecordingStore((s) => s.incrementViews);
 
+  const [showToast, setShowToast] = useState(false);
+
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const listRef = useRef<FlatList<any>>(null);
 
   console.log("recordings:", recordings);
 
+  // AutoPlay when app opens
+  useEffect(() => {
+    if (recordings.length > 0 && !activeId) {
+      setActive(recordings[0].id);
+    }
+  }, [recordings]);
+
+  // Auto Scroll to next Audio
   useEffect(() => {
     if (!activeId) return;
 
@@ -77,12 +88,18 @@ export default function App() {
           index,
         })}
       />
-      <Pressable
+
+      {/* FLOATING SYSTEM */}
+      {/* <Pressable
         onPress={() => router.push("/record")}
         className="absolute top-2 self-center bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/20"
       >
         <Text className="text-white text-xl p-2 rounded-xl">🎤 Record</Text>
-      </Pressable>
+      </Pressable> */}
+      <FloatingMic />
+
+      {/* FEEDBACK */}
+      <NowLiveToast visible={showToast} onClose={() => setShowToast(false)} />
     </View>
   );
 }

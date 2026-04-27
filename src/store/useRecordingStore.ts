@@ -28,6 +28,7 @@ export type AudioPost = {
 
   distance?: string; // "2 blocks away"
   timestamp?: string; // Tonight
+  transcript?: string;
 };
 
 type Store = {
