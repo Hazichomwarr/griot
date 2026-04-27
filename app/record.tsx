@@ -64,6 +64,8 @@ export default function Record() {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) return;
 
+      // if (a sound playing in the background) -> TODO: stop it
+
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,

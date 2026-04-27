@@ -3,7 +3,7 @@ import AudioCard from "@/src/components/AudioCard";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import { router } from "expo-router";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -14,12 +14,25 @@ export default function App() {
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
   const recordings = useRecordingStore((s) => s.recordings);
+  const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
   const incrementViews = useRecordingStore((s) => s.incrementViews);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
+  const listRef = useRef<FlatList<any>>(null);
 
   console.log("recordings:", recordings);
+
+  useEffect(() => {
+    if (!activeId) return;
+
+    const index = recordings.findIndex((r) => r.id === activeId);
+    if (index === -1) return;
+
+    setTimeout(() => {
+      listRef.current?.scrollToIndex({ index, animated: true });
+    }, 50); //slight delay to wait for Flatlist
+  }, [activeId]);
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (!viewableItems.length) return;
@@ -34,6 +47,7 @@ export default function App() {
   return (
     <View className="flex-1">
       <FlatList
+        ref={listRef}
         data={recordings}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
@@ -43,6 +57,14 @@ export default function App() {
             sharedNextSoundRef={sharedNextSoundRef}
           />
         )}
+        onScrollToIndexFailed={(info) => {
+          setTimeout(() => {
+            listRef.current?.scrollToIndex({
+              index: info.index,
+              animated: true,
+            });
+          }, 100);
+        }}
         pagingEnabled
         snapToAlignment="start"
         decelerationRate="fast"

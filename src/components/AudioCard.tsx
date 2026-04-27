@@ -35,11 +35,13 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
 export default function AudioCard({
   item,
   nextItem,
+
   sharedNextSoundRef,
 }: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
+  const setActive = useRecordingStore((s) => s.setActive);
   const activeId = useRecordingStore((s) => s.activeId);
   const addReaction = useRecordingStore((s) => s.addReaction);
 
@@ -48,49 +50,6 @@ export default function AudioCard({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-
-  // async function handlePlayback() {
-  //   if (activeId === item.id && !soundRef.current) {
-
-  //     const { sound } = await Audio.Sound.createAsync(
-  //       { uri: item.uri },
-  //       { shouldPlay: true },
-  //     );
-  //     soundRef.current = sound;
-
-  //     sound.setOnPlaybackStatusUpdate((status) => {
-  //       if (!status.isLoaded) return;
-  //       setIsPlaying(status.isPlaying);
-
-  //       if (status.durationMillis) {
-  //         setProgress(status.positionMillis / status.durationMillis);
-  //       }
-  //       if (status.didJustFinish) {
-  //         //   sound.unloadAsync(); don't destroy it
-  //         setIsPlaying(false);
-  //         setProgress(0);
-  //       }
-  //     });
-  //     // Preload next audio
-  //     if (nextItem && !nextSoundRef.current) {
-  //       const { sound } = await Audio.Sound.createAsync(
-  //         { uri: nextItem.uri },
-  //         { shouldPlay: false },
-  //       );
-  //       nextSoundRef.current = sound;
-  //     }
-  //     await sound.playAsync();
-  //   } else {
-  //     if (soundRef.current) {
-  //       await safeAudioCleanup(soundRef.current); //use  safeAudioCleanup helper to avoid Race consition between UI and async system.
-  //       soundRef.current = null;
-  //     }
-  //     if (nextSoundRef.current) {
-  //       await nextSoundRef.current.unloadAsync();
-  //       nextSoundRef.current = null;
-  //     }
-  //   }
-  // }
 
   async function handlePlayback() {
     try {
@@ -133,8 +92,14 @@ export default function AudioCard({
             }
 
             if (status.didJustFinish) {
+              // Reset UI
               setIsPlaying(false);
               setProgress(0);
+
+              // AUTO-ADVANCE
+              if (nextItem?.id) {
+                setActive(nextItem.id);
+              }
             }
           });
 
