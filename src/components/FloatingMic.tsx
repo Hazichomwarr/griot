@@ -1,7 +1,7 @@
 // src/components/FloatingMic.tsx
 
-import { router } from "expo-router";
-import { useEffect } from "react";
+import * as Haptics from "expo-haptics";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -12,11 +12,29 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export default function FloatingMic() {
+type Props = {
+  onPressRecord: () => void;
+  onPressVoices: () => void;
+  onToggleSave: () => void;
+  isSaved: boolean;
+};
+
+export default function FloatingMic({
+  onPressRecord,
+  onPressVoices,
+  onToggleSave,
+  isSaved,
+}: Props) {
   const insets = useSafeAreaInsets();
 
   const scale = useSharedValue(1);
   const glow = useSharedValue(0.7);
+
+  const [localSaved, setLocalSaved] = useState(isSaved);
+  //Sync when global changes
+  useEffect(() => {
+    setLocalSaved(isSaved);
+  }, [isSaved]);
 
   // 🫀 breathing loop
   useEffect(() => {
@@ -43,8 +61,23 @@ export default function FloatingMic() {
     >
       {/* NAV */}
       <View className="w-full flex-row justify-between px-10 mb-2">
-        <Text className="text-yellow-400 text-xs">Voices</Text>
-        <Text className="text-white text-xs opacity-60">Saved</Text>
+        <Pressable onPress={onPressVoices}>
+          <Text className="text-yellow-400 text-xs">Voices</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setLocalSaved((prev) => !prev); // instant UI update
+            onToggleSave(); // then real state update
+          }}
+        >
+          <Text
+            className={`text-xs ${localSaved ? "text-yellow-400" : "text-white opacity-60"}`}
+          >
+            {localSaved ? "Saved" : "Save"}
+          </Text>
+        </Pressable>
       </View>
 
       {/* GLOW LAYER */}
@@ -62,7 +95,7 @@ export default function FloatingMic() {
           onPressOut={() => {
             scale.value = withSpring(1.05);
           }}
-          onPress={() => router.push("/record")}
+          onPress={onPressRecord}
           className="w-20 h-20 rounded-full items-center justify-center"
           style={{
             backgroundColor: "#E6B566",

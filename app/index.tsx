@@ -4,6 +4,7 @@ import FloatingMic from "@/src/components/FloatingMic";
 import NowLiveToast from "@/src/components/NowLiveToast";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Dimensions, FlatList, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,7 +18,14 @@ export default function App() {
   const recordings = useRecordingStore((s) => s.recordings);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
+
   const incrementViews = useRecordingStore((s) => s.incrementViews);
+
+  const isSavedFn = useRecordingStore((s) => s.isSaved);
+  const toggleSaveFn = useRecordingStore((s) => s.toggleSave);
+
+  const activePost = recordings.find((r) => r.id === activeId);
+  const isSaved = activeId ? isSavedFn(activeId) : false;
 
   const [showToast, setShowToast] = useState(false);
 
@@ -90,13 +98,12 @@ export default function App() {
       />
 
       {/* FLOATING SYSTEM */}
-      {/* <Pressable
-        onPress={() => router.push("/record")}
-        className="absolute top-2 self-center bg-white/10 backdrop-blur-md px-8 py-4 rounded-full border border-white/20"
-      >
-        <Text className="text-white text-xl p-2 rounded-xl">🎤 Record</Text>
-      </Pressable> */}
-      <FloatingMic />
+      <FloatingMic
+        onPressRecord={() => router.push("/record")}
+        onPressVoices={() => router.push("/saved")}
+        onToggleSave={() => activePost && toggleSaveFn(activePost.id)}
+        isSaved={isSaved}
+      />
 
       {/* FEEDBACK */}
       <NowLiveToast visible={showToast} onClose={() => setShowToast(false)} />

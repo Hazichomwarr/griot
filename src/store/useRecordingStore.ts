@@ -35,6 +35,10 @@ type Store = {
   recordings: AudioPost[];
   activeId: string | null;
 
+  saved: string[];
+  toggleSave: (id: string) => void;
+  isSaved: (id: string) => boolean;
+
   stopAllAudioFlag: number;
   triggerStopAllAudio: () => void;
 
@@ -46,10 +50,12 @@ type Store = {
   addReaction: (id: string, emoji: keyof Reactions) => void;
 };
 
-export const useRecordingStore = create<Store>((set) => ({
+export const useRecordingStore = create<Store>((set, get) => ({
   recordings: [],
   activeId: null,
   stopAllAudioFlag: 0,
+
+  saved: [],
 
   triggerStopAllAudio: () =>
     set((state) => ({ stopAllAudioFlag: state.stopAllAudioFlag + 1 })),
@@ -100,4 +106,15 @@ export const useRecordingStore = create<Store>((set) => ({
           : r,
       ),
     })),
+
+  toggleSave: (id) =>
+    set((state) => ({
+      saved: state.saved.includes(id)
+        ? state.saved.filter((s) => s !== id)
+        : [...state.saved, id],
+    })),
+
+  isSaved: (id) => {
+    return get().saved.includes(id);
+  },
 }));
