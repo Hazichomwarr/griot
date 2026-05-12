@@ -11,10 +11,10 @@ export default function Saved() {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
-  const recordings = useRecordingStore((s) => s.recordings);
+  const posts = useRecordingStore((s) => s.posts);
   const savedIds = useRecordingStore((s) => s.saved);
 
-  const savedRecordings = recordings.filter((r) => savedIds.includes(r.id));
+  const savedPosts = posts.filter((r) => savedIds.includes(r.id));
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
 
@@ -24,7 +24,7 @@ export default function Saved() {
     triggerStopAllAudio();
   }, []);
 
-  if (savedRecordings.length === 0) {
+  if (savedPosts.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <Text className="text-white opacity-60">No saved voices yet</Text>
@@ -35,12 +35,12 @@ export default function Saved() {
   return (
     <View className="flex-1">
       <FlatList
-        data={savedRecordings}
+        data={savedPosts}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <AudioCard
             item={item}
-            nextItem={savedRecordings[index + 1]}
+            nextItem={savedPosts[index + 1]}
             sharedNextSoundRef={sharedNextSoundRef}
           />
         )}

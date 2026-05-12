@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { createPost, getPosts } from "@/src/services/postService";
+import uploadAudio from "@/src/services/uploadService";
+
 type Mode = "idle" | "recording";
 
 type Categories = {
@@ -45,7 +48,7 @@ export default function Record() {
     triggerStopAllAudio();
   }, []);
 
-  const addRecording = useRecordingStore((s) => s.addRecording);
+  const setPosts = useRecordingStore((s) => s.setPosts);
   const deleteRecording = useRecordingStore((s) => s.deleteRecording);
 
   const [mode, setMode] = useState<Mode>("idle");
@@ -71,9 +74,6 @@ export default function Record() {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        // staysActiveInBackground: false,
-        // interruptionModeIOS: 1,
-        // shouldDuckAndroid: true,
       });
 
       const { recording } = await Audio.Recording.createAsync(
@@ -108,15 +108,62 @@ export default function Record() {
     setMode("idle");
 
     if (uri) {
-      const newPost = addRecording(uri, category);
-      setLastPostedId(newPost.id);
+      try {
+        // 1. Upload audio to Supabase Storage
+        const audioUrl = await uploadAudio(uri);
 
-      // feedback
-      setJustPosted(true);
+        if (!audioUrl) {
+          console.log("Audio upload failed");
+          return;
+        }
+        console.log("Public Audio URL:", audioUrl);
 
-      setTimeout(() => {
-        setJustPosted(false);
-      }, 3000);
+        // 2. Create DB post
+        const createdPost = await createPost({
+          audio_url: audioUrl,
+          duration: Math.floor(duration / 1000),
+
+          views: 0,
+
+          reactions: {
+            "😂": 0,
+            "🚨": 0,
+            "👍": 0,
+          },
+
+          username: "Hamza",
+          avatar: "",
+          neighborhood: "Karpala",
+          town: "Ouagadougou",
+          country: "Burkina Faso",
+
+          category,
+
+          transcript: "",
+        });
+
+        if (!createdPost) {
+          console.log("DB post creation failed");
+          return;
+        }
+
+        // 3. OPTIONAL:
+        // keep local feed alive for now
+        //const newPost = addRecording(audioUrl, category);
+        //setLastPostedId(newPost.id);
+
+        const posts = await getPosts();
+        setPosts(posts);
+
+        // feedback
+        setJustPosted(true);
+
+        setTimeout(() => {
+          setJustPosted(false);
+        }, 3000);
+      } catch (err) {
+        console.log("stopRecording upload error:", err);
+      }
     }
     setDuration(0);
   }

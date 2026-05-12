@@ -15,7 +15,7 @@ export default function App() {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
-  const recordings = useRecordingStore((s) => s.recordings);
+  const posts = useRecordingStore((s) => s.posts);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
@@ -24,7 +24,7 @@ export default function App() {
   const isSavedFn = useRecordingStore((s) => s.isSaved);
   const toggleSaveFn = useRecordingStore((s) => s.toggleSave);
 
-  const activePost = recordings.find((r) => r.id === activeId);
+  const activePost = posts.find((p) => p.id === activeId);
   const isSaved = activeId ? isSavedFn(activeId) : false;
 
   const [showToast, setShowToast] = useState(false);
@@ -32,20 +32,20 @@ export default function App() {
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const listRef = useRef<FlatList<any>>(null);
 
-  console.log("recordings:", recordings);
+  //console.log("recordings:", posts);
 
   // AutoPlay when app opens
   useEffect(() => {
-    if (recordings.length > 0 && !activeId) {
-      setActive(recordings[0].id);
+    if (posts.length > 0 && !activeId) {
+      setActive(posts[0].id);
     }
-  }, [recordings]);
+  }, [posts]);
 
   // Auto Scroll to next Audio
   useEffect(() => {
     if (!activeId) return;
 
-    const index = recordings.findIndex((r) => r.id === activeId);
+    const index = posts.findIndex((p) => p.id === activeId);
     if (index === -1) return;
 
     setTimeout(() => {
@@ -67,12 +67,12 @@ export default function App() {
     <View className="flex-1">
       <FlatList
         ref={listRef}
-        data={recordings}
+        data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => (
           <AudioCard
             item={item}
-            nextItem={recordings[index + 1]}
+            nextItem={posts[index + 1]}
             sharedNextSoundRef={sharedNextSoundRef}
           />
         )}

@@ -1,6 +1,6 @@
 // src/components/AudioCard.tsx
 
-import { safeAudioCleanup } from "@/lib/safeAudioCleanup";
+import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {

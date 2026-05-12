@@ -32,8 +32,10 @@ export type AudioPost = {
 };
 
 type Store = {
-  recordings: AudioPost[];
   activeId: string | null;
+
+  posts: AudioPost[];
+  setPosts: (posts: AudioPost[]) => void;
 
   saved: string[];
   toggleSave: (id: string) => void;
@@ -43,7 +45,7 @@ type Store = {
   triggerStopAllAudio: () => void;
 
   setActive: (id: string) => void;
-  addRecording: (uri: string, category: Category) => AudioPost;
+  //addRecording: (uri: string, category: Category) => AudioPost;
   deleteRecording: (id: string) => void;
 
   incrementViews: (id: string) => void;
@@ -51,7 +53,7 @@ type Store = {
 };
 
 export const useRecordingStore = create<Store>((set, get) => ({
-  recordings: [],
+  posts: [],
   activeId: null,
   stopAllAudioFlag: 0,
 
@@ -62,42 +64,42 @@ export const useRecordingStore = create<Store>((set, get) => ({
 
   setActive: (id) => set({ activeId: id }),
 
-  addRecording: (uri, category) => {
-    const newItem: AudioPost = {
-      id: Date.now().toString(),
-      uri,
-      username: "Hamza", // temp
-      avatar: "https://i.pravatar.cc/150?img=1",
-      neighborhood: "Karpala",
-      town: "Ouagadougou",
-      views: 0,
-      category,
-      reactions: {
-        "😂": 0,
-        "🚨": 0,
-        "👍": 0,
-      },
-    };
-    set((state) => ({
-      recordings: [newItem, ...state.recordings],
-    }));
-    return newItem;
-  },
-
+  // addRecording: (uri, category) => {
+  //   const newItem: AudioPost = {
+  //     id: Date.now().toString(),
+  //     uri,
+  //     username: "Hamza", // temp
+  //     avatar: "https://i.pravatar.cc/150?img=1",
+  //     neighborhood: "Karpala",
+  //     town: "Ouagadougou",
+  //     views: 0,
+  //     category,
+  //     reactions: {
+  //       "😂": 0,
+  //       "🚨": 0,
+  //       "👍": 0,
+  //     },
+  //   };
+  //   set((state) => ({
+  //     recordings: [newItem, ...state.recordings],
+  //   }));
+  //   return newItem;
+  // },
+  setPosts: (posts) => set({ posts }),
   deleteRecording: (id) =>
     set((state) => ({
-      recordings: state.recordings.filter((r) => r.id !== id),
+      posts: state.posts.filter((r) => r.id !== id),
     })),
 
   incrementViews: (id) =>
     set((state) => ({
-      recordings: state.recordings.map((r) =>
+      posts: state.posts.map((r) =>
         r.id === id ? { ...r, views: r.views + 1 } : r,
       ),
     })),
   addReaction: (id, emoji) =>
     set((state) => ({
-      recordings: state.recordings.map((r) =>
+      posts: state.posts.map((r) =>
         r.id === id
           ? {
               ...r,
