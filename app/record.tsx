@@ -5,11 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  createPost,
-  getPosts,
-  testPostsConnection,
-} from "@/src/services/postService";
+import { createPost, getPosts } from "@/src/services/postService";
 import uploadAudio from "@/src/services/uploadService";
 
 type Mode = "idle" | "recording";
@@ -68,7 +64,6 @@ export default function Record() {
 
   // 🎙 START RECORDING
   async function startRecording() {
-    testPostsConnection();
     try {
       const permission = await Audio.requestPermissionsAsync();
       if (!permission.granted) return;
