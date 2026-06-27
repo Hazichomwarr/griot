@@ -52,6 +52,10 @@ export default function AudioCard({
   // 🎧 PLAYBACK ENGINE
   async function handlePlayback() {
     try {
+      if (!item.uri) {
+        console.log("Skipping post with missing uri:", item);
+        return;
+      }
       // 👉 ACTIVE CARD
       if (activeId === item.id) {
         // 🎧 PLAY CURRENT (reuse preload if available)

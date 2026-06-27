@@ -81,8 +81,9 @@ export default function App() {
 
   useEffect(() => {
     async function loadPosts() {
-      const data = (await getPosts()) ?? [];
-      setPosts(data.map(mapDbPostToAudioPost));
+      const posts = await getPosts();
+      console.log("Loaded UI posts:", posts);
+      setPosts(posts);
     }
 
     loadPosts();

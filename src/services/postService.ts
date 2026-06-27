@@ -1,6 +1,65 @@
-import { supabase } from "../lib/supabase";
+// src/services/postService.ts
+import { supabase } from "@/src/lib/supabase";
+import type {
+  AudioPost,
+  Category,
+  Reactions,
+} from "@/src/store/useRecordingStore";
 
-type CreatePostInput = {
+type DbPost = {
+  id: string;
+  audio_url: string | null;
+  duration?: number | null;
+  views?: number | null;
+  reactions?: Reactions | null;
+  username?: string | null;
+  avatar?: string | null;
+  neighborhood?: string | null;
+  town?: string | null;
+  country?: string | null;
+  category?: Category | null;
+  transcript?: string | null;
+  created_at?: string | null;
+};
+
+function mapDbPostToAudioPost(post: DbPost): AudioPost {
+  return {
+    id: post.id,
+    uri: post.audio_url ?? "",
+    duration: post.duration ?? 0,
+    views: post.views ?? 0,
+    reactions: post.reactions ?? {
+      "😂": 0,
+      "🚨": 0,
+      "👍": 0,
+    },
+    username: post.username ?? "Anonymous",
+    avatar: post.avatar ?? "",
+    neighborhood: post.neighborhood ?? "",
+    town: post.town ?? "",
+    country: post.country ?? "",
+    category: post.category ?? "social",
+    transcript: post.transcript ?? "",
+    timestamp: post.created_at ?? "",
+  };
+}
+
+export async function getPosts(): Promise<AudioPost[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .not("audio_url", "is", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.log("getPosts error:", JSON.stringify(error, null, 2));
+    return [];
+  }
+
+  return ((data ?? []) as DbPost[]).map(mapDbPostToAudioPost);
+}
+
+export async function createPost(post: {
   audio_url: string;
   duration?: number;
   views?: number;
@@ -12,14 +71,12 @@ type CreatePostInput = {
   country?: string;
   category: string;
   transcript?: string;
-};
-
-export async function createPost(post: CreatePostInput) {
+}) {
   const dbPost = {
     audio_url: post.audio_url,
     duration: post.duration ?? 0,
     views: post.views ?? 0,
-    reactions: post.reactions ?? {},
+    reactions: post.reactions ?? { "😂": 0, "🚨": 0, "👍": 0 },
     username: post.username,
     avatar: post.avatar ?? "",
     neighborhood: post.neighborhood ?? "",
@@ -43,19 +100,5 @@ export async function createPost(post: CreatePostInput) {
   }
 
   console.log("createPost insert succeeded:", JSON.stringify(data, null, 2));
-  return data;
-}
-
-export async function getPosts() {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("*")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.log("getPosts error:", error);
-    return [];
-  }
-
-  return data;
+  return mapDbPostToAudioPost(data);
 }
