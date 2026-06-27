@@ -1,33 +1,48 @@
-// src/lib/services/postService.ts
 import { supabase } from "../lib/supabase";
 
-// export async function createPost(post: any) {
-//   const { data, error } = await supabase
-//     .from("posts")
-//     .insert(post)
-//     .select()
-//     .single();
+type CreatePostInput = {
+  audio_url: string;
+  duration?: number;
+  views?: number;
+  reactions?: Record<string, number>;
+  username: string;
+  avatar?: string;
+  neighborhood?: string;
+  town?: string;
+  country?: string;
+  category: string;
+  transcript?: string;
+};
 
-//   if (error) {
-//     console.log("createPost error:", error);
-//   }
-//   return data;
-// }
+export async function createPost(post: CreatePostInput) {
+  const dbPost = {
+    audio_url: post.audio_url,
+    duration: post.duration ?? 0,
+    views: post.views ?? 0,
+    reactions: post.reactions ?? {},
+    username: post.username,
+    avatar: post.avatar ?? "",
+    neighborhood: post.neighborhood ?? "",
+    town: post.town ?? "",
+    country: post.country ?? "",
+    category: post.category,
+    transcript: post.transcript ?? "",
+  };
 
-export async function createPost(post: any) {
-  // 👇 Add this temporarily
-  console.log("Supabase URL:", process.env.EXPO_PUBLIC_SUPABASE_URL);
-  console.log("Inserting post:", JSON.stringify(post, null, 2));
+  console.log("createPost insert payload:", JSON.stringify(dbPost, null, 2));
 
   const { data, error } = await supabase
     .from("posts")
-    .insert(post)
+    .insert(dbPost)
     .select()
     .single();
 
   if (error) {
-    console.log("createPost error:", JSON.stringify(error, null, 2));
+    console.log("createPost insert failed:", JSON.stringify(error, null, 2));
+    return null;
   }
+
+  console.log("createPost insert succeeded:", JSON.stringify(data, null, 2));
   return data;
 }
 

@@ -2,6 +2,12 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
 import NowLiveToast from "@/src/components/NowLiveToast";
+import { getPosts } from "@/src/services/postService";
+import type {
+  AudioPost,
+  Category,
+  Reactions,
+} from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import { router } from "expo-router";
@@ -11,11 +17,50 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
+type DbPost = {
+  id: string;
+  audio_url: string;
+  duration?: number;
+  views?: number;
+  reactions?: Reactions;
+  username?: string;
+  avatar?: string;
+  neighborhood?: string;
+  town?: string;
+  country?: string;
+  category?: Category;
+  transcript?: string;
+  created_at?: string;
+};
+
+function mapDbPostToAudioPost(post: DbPost): AudioPost {
+  return {
+    id: post.id,
+    uri: post.audio_url,
+    duration: post.duration,
+    views: post.views ?? 0,
+    reactions: post.reactions ?? {
+      "😂": 0,
+      "🚨": 0,
+      "👍": 0,
+    },
+    username: post.username ?? "",
+    avatar: post.avatar ?? "",
+    neighborhood: post.neighborhood ?? "",
+    town: post.town ?? "",
+    country: post.country,
+    category: post.category ?? "social",
+    timestamp: post.created_at,
+    transcript: post.transcript ?? "",
+  };
+}
+
 export default function App() {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
 
   const posts = useRecordingStore((s) => s.posts);
+  const setPosts = useRecordingStore((s) => s.setPosts);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
@@ -33,6 +78,15 @@ export default function App() {
   const listRef = useRef<FlatList<any>>(null);
 
   //console.log("recordings:", posts);
+
+  useEffect(() => {
+    async function loadPosts() {
+      const data = (await getPosts()) ?? [];
+      setPosts(data.map(mapDbPostToAudioPost));
+    }
+
+    loadPosts();
+  }, [setPosts]);
 
   // AutoPlay when app opens
   useEffect(() => {
