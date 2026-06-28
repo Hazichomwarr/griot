@@ -3,7 +3,7 @@ import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createPost, getPosts } from "@/src/services/postService";
@@ -14,6 +14,19 @@ type Mode = "idle" | "recording";
 type CapturedLocation = {
   latitude: number | null;
   longitude: number | null;
+};
+
+type ResolvedPlace = {
+  neighborhood: string;
+  town: string;
+  country: string;
+};
+
+type LocalProfilePlace = {
+  profile?: Partial<ResolvedPlace>;
+  neighborhood?: string;
+  town?: string;
+  country?: string;
 };
 
 type Categories = {
@@ -44,6 +57,12 @@ const CATEGORIES: Categories[] = [
   },
 ];
 
+const FALLBACK_PLACE: ResolvedPlace = {
+  neighborhood: "Karpala",
+  town: "Ouagadougou",
+  country: "Burkina Faso",
+};
+
 async function captureLocation(): Promise<CapturedLocation> {
   try {
     const permission = await Location.requestForegroundPermissionsAsync();
@@ -55,14 +74,101 @@ async function captureLocation(): Promise<CapturedLocation> {
 
     console.log("location granted");
 
-    const location = await Location.getCurrentPositionAsync({});
-    return {
+    const location =
+      (await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      }).catch((err) => {
+        console.log("fresh location capture failed:", err);
+        return null;
+      })) ??
+      (await Location.getLastKnownPositionAsync({
+        maxAge: 60_000,
+      }));
+
+    if (!location) {
+      console.log("location capture failed: no current or last known location");
+      return { latitude: null, longitude: null };
+    }
+
+    const capturedLocation = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
     };
+
+    console.log("captured location:", JSON.stringify(capturedLocation, null, 2));
+    return capturedLocation;
   } catch (err) {
     console.log("location capture failed:", err);
     return { latitude: null, longitude: null };
+  }
+}
+
+function firstValue(...values: Array<string | null | undefined>) {
+  return values.find((value) => value && value.trim().length > 0);
+}
+
+function getLocalProfilePlace(): ResolvedPlace {
+  const state = useRecordingStore.getState() as unknown as LocalProfilePlace;
+
+  return {
+    neighborhood:
+      firstValue(state.profile?.neighborhood, state.neighborhood) ??
+      FALLBACK_PLACE.neighborhood,
+    town:
+      firstValue(state.profile?.town, state.town) ?? FALLBACK_PLACE.town,
+    country:
+      firstValue(state.profile?.country, state.country) ??
+      FALLBACK_PLACE.country,
+  };
+}
+
+async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> {
+  if (location.latitude === null || location.longitude === null) {
+    console.log("reverse geocoding skipped: missing coordinates");
+    console.log("resolved place:", JSON.stringify(FALLBACK_PLACE, null, 2));
+    return FALLBACK_PLACE;
+  }
+
+  if (Platform.OS === "web") {
+    const place = getLocalProfilePlace();
+    console.log("reverse geocoding skipped on web");
+    console.log("resolved place:", JSON.stringify(place, null, 2));
+    return place;
+  }
+
+  try {
+    const places = await Location.reverseGeocodeAsync({
+      latitude: location.latitude,
+      longitude: location.longitude,
+    });
+
+    console.log("reverse geocode results:", JSON.stringify(places, null, 2));
+
+    const [place] = places;
+
+    const resolvedPlace = {
+      neighborhood:
+        firstValue(
+          place?.district,
+          place?.street,
+          place?.name,
+          place?.formattedAddress,
+        ) ?? FALLBACK_PLACE.neighborhood,
+      town:
+        firstValue(place?.city, place?.subregion, place?.region) ??
+        FALLBACK_PLACE.town,
+      country:
+        firstValue(place?.country, place?.isoCountryCode) ??
+        FALLBACK_PLACE.country,
+    };
+
+    console.log("reverse geocoding resolved on native");
+    console.log("resolved place:", JSON.stringify(resolvedPlace, null, 2));
+    return resolvedPlace;
+  } catch (err) {
+    console.log("reverse geocoding failed:", err);
+    console.log("resolved place:", JSON.stringify(FALLBACK_PLACE, null, 2));
+    return FALLBACK_PLACE;
   }
 }
 
@@ -148,6 +254,7 @@ export default function Record() {
         console.log("Public Audio URL:", audioUrl);
 
         const location = await captureLocation();
+        const place = await resolvePlace(location);
 
         // 2. Create DB post
         const createdPost = await createPost({
@@ -164,9 +271,9 @@ export default function Record() {
 
           username: "Hamza",
           avatar: "",
-          neighborhood: "Karpala",
-          town: "Ouagadougou",
-          country: "Burkina Faso",
+          neighborhood: place.neighborhood,
+          town: place.town,
+          country: place.country,
 
           category,
 
