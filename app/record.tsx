@@ -50,6 +50,7 @@ export default function Record() {
 
   const setPosts = useRecordingStore((s) => s.setPosts);
   const deleteRecording = useRecordingStore((s) => s.deleteRecording);
+  const addMyPostId = useRecordingStore((s) => s.addMyPostId);
 
   const [mode, setMode] = useState<Mode>("idle");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -148,6 +149,7 @@ export default function Record() {
         }
 
         setLastPostedId(createdPost.id);
+        addMyPostId(createdPost.id);
 
         const posts = await getPosts();
         setPosts(posts);

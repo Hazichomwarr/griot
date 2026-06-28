@@ -41,6 +41,9 @@ type Store = {
   toggleSave: (id: string) => void;
   isSaved: (id: string) => boolean;
 
+  myPostIds: string[];
+  addMyPostId: (id: string) => void;
+
   stopAllAudioFlag: number;
   triggerStopAllAudio: () => void;
 
@@ -58,6 +61,7 @@ export const useRecordingStore = create<Store>((set, get) => ({
   stopAllAudioFlag: 0,
 
   saved: [],
+  myPostIds: [],
 
   triggerStopAllAudio: () =>
     set((state) => ({ stopAllAudioFlag: state.stopAllAudioFlag + 1 })),
@@ -119,4 +123,11 @@ export const useRecordingStore = create<Store>((set, get) => ({
   isSaved: (id) => {
     return get().saved.includes(id);
   },
+
+  addMyPostId: (id) =>
+    set((state) => ({
+      myPostIds: state.myPostIds.includes(id)
+        ? state.myPostIds
+        : [...state.myPostIds, id],
+    })),
 }));
