@@ -109,7 +109,7 @@ export default function Record() {
 
     if (uri) {
       try {
-        // 1. Upload audio to Supabase Storage
+        // 1. Upload audio to Cloudinary
         const audioUrl = await uploadAudio(uri);
 
         if (!audioUrl) {
@@ -147,10 +147,7 @@ export default function Record() {
           return;
         }
 
-        // 3. OPTIONAL:
-        // keep local feed alive for now
-        //const newPost = addRecording(audioUrl, category);
-        //setLastPostedId(newPost.id);
+        setLastPostedId(createdPost.id);
 
         const posts = await getPosts();
         setPosts(posts);
