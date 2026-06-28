@@ -1,6 +1,8 @@
 import AudioCard from "@/src/components/AudioCard";
+import FloatingMic from "@/src/components/FloatingMic";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
+import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Dimensions, FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,21 +15,48 @@ export default function Saved() {
 
   const posts = useRecordingStore((s) => s.posts);
   const savedIds = useRecordingStore((s) => s.saved);
+  const activeId = useRecordingStore((s) => s.activeId);
+  const setActive = useRecordingStore((s) => s.setActive);
+  const toggleSave = useRecordingStore((s) => s.toggleSave);
 
   const savedPosts = posts.filter((r) => savedIds.includes(r.id));
+  const activePost = savedPosts.find((post) => post.id === activeId);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    const item = viewableItems[0]?.item;
+    if (item?.id) {
+      setActive(item.id);
+    }
+  });
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 });
 
-  // Stop all feed audio when entering record screen
   const triggerStopAllAudio = useRecordingStore((s) => s.triggerStopAllAudio);
   useEffect(() => {
     triggerStopAllAudio();
   }, []);
 
+  useEffect(() => {
+    if (savedPosts.length > 0 && !activePost) {
+      setActive(savedPosts[0].id);
+    }
+  }, [savedPosts, activePost]);
+
   if (savedPosts.length === 0) {
     return (
       <View className="flex-1 items-center justify-center bg-black">
-        <Text className="text-white opacity-60">No saved voices yet</Text>
+        <Text className="text-white text-lg font-semibold">
+          Aucune voix sauvegardée
+        </Text>
+        <Text className="text-white/60 text-center mt-2 px-8">
+          Les voix que tu veux retrouver vivront ici.
+        </Text>
+        <FloatingMic
+          onPressRecord={() => router.push("/record")}
+          onPressVoices={() => router.push("/")}
+          onToggleSave={() => {}}
+          isSaved={false}
+        />
       </View>
     );
   }
@@ -48,11 +77,19 @@ export default function Saved() {
         snapToAlignment="start"
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged.current}
+        viewabilityConfig={viewabilityConfig.current}
         getItemLayout={(_, index) => ({
           length: usableHeight,
           offset: usableHeight * index,
           index,
         })}
+      />
+      <FloatingMic
+        onPressRecord={() => router.push("/record")}
+        onPressVoices={() => router.push("/")}
+        onToggleSave={() => activePost && toggleSave(activePost.id)}
+        isSaved={Boolean(activePost)}
       />
     </View>
   );
