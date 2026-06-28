@@ -1,5 +1,6 @@
 // src/components/FloatingMic.tsx
 
+import { getStrings } from "@/src/lib/i18n/strings";
 import * as Haptics from "expo-haptics";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -26,6 +27,7 @@ export default function FloatingMic({
   isSaved,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const t = getStrings();
 
   const scale = useSharedValue(1);
   const glow = useSharedValue(0.7);
@@ -62,7 +64,9 @@ export default function FloatingMic({
       {/* NAV */}
       <View className="w-full flex-row justify-between px-10 mb-2">
         <Pressable onPress={onPressVoices}>
-          <Text className="text-yellow-400 text-xs">Voices</Text>
+          <Text className="text-yellow-400 text-xs">
+            {t.floatingMic.voices}
+          </Text>
         </Pressable>
 
         <Pressable
@@ -75,7 +79,7 @@ export default function FloatingMic({
           <Text
             className={`text-xs ${localSaved ? "text-yellow-400" : "text-white opacity-60"}`}
           >
-            {localSaved ? "Saved" : "Save"}
+            {localSaved ? t.floatingMic.saved : t.floatingMic.save}
           </Text>
         </Pressable>
       </View>
@@ -110,7 +114,9 @@ export default function FloatingMic({
       </Animated.View>
 
       {/* LABEL */}
-      <Text className="text-yellow-400 mt-2 text-sm">Share your voice</Text>
+      <Text className="text-yellow-400 mt-2 text-sm">
+        {t.floatingMic.shareVoice}
+      </Text>
     </View>
   );
 }

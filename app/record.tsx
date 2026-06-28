@@ -1,4 +1,5 @@
 // app/record.tsx
+import { getStrings, type Strings } from "@/src/lib/i18n/strings";
 import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import * as Location from "expo-location";
@@ -32,7 +33,7 @@ type LocalProfilePlace = {
 type Categories = {
   key: Category;
   emoji: string;
-  description: string;
+  labelKey: keyof Strings["categories"];
   bgColor?: string;
 };
 
@@ -40,19 +41,19 @@ const CATEGORIES: Categories[] = [
   {
     key: "social",
     emoji: "😂",
-    description: "Social-contes",
+    labelKey: "social",
     bgColor: "bg-black",
   },
   {
     key: "security",
     emoji: "🚨",
-    description: "Urgences",
+    labelKey: "security",
     bgColor: "bg-red-900/20",
   },
   {
     key: "vente",
     emoji: "🛒",
-    description: "Vente-achats",
+    labelKey: "vente",
     bgColor: "bg-gren-900/20",
   },
 ];
@@ -174,6 +175,7 @@ async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> 
 
 export default function Record() {
   const insets = useSafeAreaInsets();
+  const t = getStrings();
 
   const triggerStopAllAudio = useRecordingStore((s) => s.triggerStopAllAudio);
 
@@ -341,7 +343,7 @@ export default function Record() {
       {/* TOP */}
       <View className="mx-auto">
         <Text className="text-white text-2xl font-semibold">
-          Partage ta voix
+          {t.record.title}
         </Text>
       </View>
 
@@ -359,7 +361,7 @@ export default function Record() {
               <Text
                 className={`text-xs font-semibold ${category === c.key ? "text-black" : "text-white"}`}
               >
-                {c.description}
+                {t.categories[c.labelKey]}
               </Text>
             </View>
           </Pressable>
@@ -385,8 +387,8 @@ export default function Record() {
         </Pressable>
 
         <Text className="text-neutral-400 text-sm">
-          {mode === "idle" && "Maintenez pour parler"}
-          {mode === "recording" && "Relachez pour publier"}
+          {mode === "idle" && t.record.holdToSpeak}
+          {mode === "recording" && t.record.releaseToPublish}
         </Text>
 
         {mode === "recording" && (
@@ -398,11 +400,13 @@ export default function Record() {
       {justPosted && (
         <View className="absolute bottom-24 self-center bg-black/80 px-6 py-4 rounded-xl">
           <Text className="text-white text-center mb-2">
-            ✅ Ta voix est publiée
+            ✅ {t.record.published}
           </Text>
 
           <Pressable onPress={handleRedo}>
-            <Text className="text-blue-400 text-center">Remplacer</Text>
+            <Text className="text-blue-400 text-center">
+              {t.record.replace}
+            </Text>
           </Pressable>
         </View>
       )}

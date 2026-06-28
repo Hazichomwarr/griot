@@ -1,5 +1,6 @@
 // src/components/AudioCard.tsx
 
+import { getStrings } from "@/src/lib/i18n/strings";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
@@ -28,6 +29,10 @@ export default function AudioCard({
 }: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
+  const t = getStrings();
+  const country = item.country || t.audioCard.countryFallback;
+  const neighborhood = item.neighborhood || t.audioCard.neighborhoodFallback;
+  const town = item.town || t.audioCard.townFallback;
 
   const stopAllAudioFlag = useRecordingStore((s) => s.stopAllAudioFlag);
   useEffect(() => {
@@ -190,19 +195,20 @@ export default function AudioCard({
             </Text>
 
             <View className="mt-3 px-4 py-2 bg-white/10 rounded-full">
-              <Text className="text-white text-sm">📍 {item.town}, BF</Text>
+              <Text className="text-white text-sm">
+                📍 {town}, {country}
+              </Text>
             </View>
           </View>
 
           {/* CENTER — VOICE */}
           <View className="flex-1 justify-center items-center px-6 pb-32">
             <Text className="text-white text-3xl text-center leading-10 font-medium">
-              {item.transcript ||
-                "La deguê à côté de la Creamière n'est plus bon..."}
+              {item.transcript || t.audioCard.fallbackTranscript}
             </Text>
 
             <Text className="text-neutral-400 mt-4 text-sm">
-              {item.neighborhood} • now
+              {neighborhood} • {t.audioCard.now}
             </Text>
 
             {/* PLAYER */}

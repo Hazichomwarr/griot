@@ -1,5 +1,6 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
+import { getStrings } from "@/src/lib/i18n/strings";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import { router } from "expo-router";
@@ -12,6 +13,7 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
 export default function Saved() {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
+  const t = getStrings();
 
   const posts = useRecordingStore((s) => s.posts);
   const savedIds = useRecordingStore((s) => s.saved);
@@ -46,10 +48,10 @@ export default function Saved() {
     return (
       <View className="flex-1 items-center justify-center bg-black">
         <Text className="text-white text-lg font-semibold">
-          Aucune voix sauvegardée
+          {t.saved.emptyTitle}
         </Text>
         <Text className="text-white/60 text-center mt-2 px-8">
-          Les voix que tu veux retrouver vivront ici.
+          {t.saved.emptyBody}
         </Text>
         <FloatingMic
           onPressRecord={() => router.push("/record")}
