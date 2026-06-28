@@ -19,6 +19,8 @@ type DbPost = {
   country?: string | null;
   category?: Category | null;
   transcript?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at?: string | null;
 };
 
@@ -71,6 +73,8 @@ export async function createPost(post: {
   country?: string;
   category: string;
   transcript?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }) {
   const dbPost = {
     audio_url: post.audio_url,
@@ -84,6 +88,8 @@ export async function createPost(post: {
     country: post.country ?? "",
     category: post.category,
     transcript: post.transcript ?? "",
+    latitude: post.latitude ?? null,
+    longitude: post.longitude ?? null,
   };
 
   console.log("createPost insert payload:", JSON.stringify(dbPost, null, 2));

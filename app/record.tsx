@@ -1,6 +1,7 @@
 // app/record.tsx
 import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
+import * as Location from "expo-location";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +10,11 @@ import { createPost, getPosts } from "@/src/services/postService";
 import uploadAudio from "@/src/services/uploadService";
 
 type Mode = "idle" | "recording";
+
+type CapturedLocation = {
+  latitude: number | null;
+  longitude: number | null;
+};
 
 type Categories = {
   key: Category;
@@ -37,6 +43,28 @@ const CATEGORIES: Categories[] = [
     bgColor: "bg-gren-900/20",
   },
 ];
+
+async function captureLocation(): Promise<CapturedLocation> {
+  try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+
+    if (!permission.granted) {
+      console.log("location denied");
+      return { latitude: null, longitude: null };
+    }
+
+    console.log("location granted");
+
+    const location = await Location.getCurrentPositionAsync({});
+    return {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
+  } catch (err) {
+    console.log("location capture failed:", err);
+    return { latitude: null, longitude: null };
+  }
+}
 
 export default function Record() {
   const insets = useSafeAreaInsets();
@@ -119,6 +147,8 @@ export default function Record() {
         }
         console.log("Public Audio URL:", audioUrl);
 
+        const location = await captureLocation();
+
         // 2. Create DB post
         const createdPost = await createPost({
           audio_url: audioUrl,
@@ -141,6 +171,8 @@ export default function Record() {
           category,
 
           transcript: "",
+          latitude: location.latitude,
+          longitude: location.longitude,
         });
 
         if (!createdPost) {

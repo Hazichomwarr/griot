@@ -2,7 +2,7 @@
 
 ## Project Rule
 
-Read `codexInstructions.md` before every task.
+Read `notes/instructions/codexInstructions.md` before every task.
 
 Do only the assigned ticket.
 Do not implement future tickets early.
