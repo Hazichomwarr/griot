@@ -303,47 +303,6 @@ Give Codex one ticket at a time.
 
 ---
 
-## Ticket 6A — Fix Reverse Geocoding Fallback
-
-### Goal
-
-Make location display reliable across native and web.
-
-### Context
-
-Coordinates are captured correctly.
-
-On web, Expo reverse geocoding may return empty results.
-
-Native mobile may work differently.
-
-The app should never block publishing if place resolution fails.
-
-### Requirements
-
-1. Keep latitude and longitude capture.
-2. If reverse geocoding works, use resolved place.
-3. If reverse geocoding fails, use local profile location if available.
-4. If no local profile exists, use safe fallback.
-5. Add clear logs:
-   - coordinates captured
-   - reverse geocoding succeeded
-   - reverse geocoding failed
-   - fallback location used
-
-6. Do not add Google Places.
-7. Do not add maps.
-8. Do not add backend geocoding.
-
-### Test
-
-- Test on web.
-- Test on Expo Go if available.
-- Confirm post still publishes in both cases.
-- Confirm coordinates are still saved even if place name fallback is used.
-
----
-
 ## Ticket 7 — Localization Foundation
 
 ### Goal

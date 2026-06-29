@@ -3,7 +3,7 @@ import { create } from "zustand";
 
 console.log("STORE INIT");
 
-export type Category = "social" | "security" | "vente";
+export type Category = "moments" | "around_you";
 
 export type Reactions = {
   "😂": number;

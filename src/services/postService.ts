@@ -17,12 +17,16 @@ type DbPost = {
   neighborhood?: string | null;
   town?: string | null;
   country?: string | null;
-  category?: Category | null;
+  category?: string | null;
   transcript?: string | null;
   latitude?: number | null;
   longitude?: number | null;
   created_at?: string | null;
 };
+
+function normalizeCategory(category?: string | null): Category {
+  return category === "around_you" ? "around_you" : "moments";
+}
 
 function mapDbPostToAudioPost(post: DbPost): AudioPost {
   return {
@@ -40,7 +44,7 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
     neighborhood: post.neighborhood ?? "",
     town: post.town ?? "",
     country: post.country ?? "",
-    category: post.category ?? "social",
+    category: normalizeCategory(post.category),
     transcript: post.transcript ?? "",
     timestamp: post.created_at ?? "",
   };
@@ -71,7 +75,7 @@ export async function createPost(post: {
   neighborhood?: string;
   town?: string;
   country?: string;
-  category: string;
+  category: Category;
   transcript?: string;
   latitude?: number | null;
   longitude?: number | null;

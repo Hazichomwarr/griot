@@ -49,7 +49,7 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
     neighborhood: post.neighborhood ?? "",
     town: post.town ?? "",
     country: post.country,
-    category: post.category ?? "social",
+    category: post.category ?? "moments",
     timestamp: post.created_at,
     transcript: post.transcript ?? "",
   };

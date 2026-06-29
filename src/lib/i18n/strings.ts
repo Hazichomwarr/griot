@@ -11,9 +11,8 @@ export const strings = {
       townFallback: "around you",
     },
     categories: {
-      social: "Social stories",
-      security: "Alerts",
-      vente: "Buy and sell",
+      moments: "Moments",
+      aroundYou: "Around You",
     },
     floatingMic: {
       voices: "Voices",
@@ -52,9 +51,8 @@ export const strings = {
       townFallback: "autour de toi",
     },
     categories: {
-      social: "Social-contes",
-      security: "Urgences",
-      vente: "Vente-achats",
+      moments: "Moments",
+      aroundYou: "Autour de toi",
     },
     floatingMic: {
       voices: "Voix",

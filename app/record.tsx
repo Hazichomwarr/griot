@@ -39,22 +39,16 @@ type Categories = {
 
 const CATEGORIES: Categories[] = [
   {
-    key: "social",
+    key: "moments",
     emoji: "😂",
-    labelKey: "social",
+    labelKey: "moments",
     bgColor: "bg-black",
   },
   {
-    key: "security",
-    emoji: "🚨",
-    labelKey: "security",
+    key: "around_you",
+    emoji: "📍",
+    labelKey: "aroundYou",
     bgColor: "bg-red-900/20",
-  },
-  {
-    key: "vente",
-    emoji: "🛒",
-    labelKey: "vente",
-    bgColor: "bg-gren-900/20",
   },
 ];
 
@@ -191,7 +185,7 @@ export default function Record() {
   const [mode, setMode] = useState<Mode>("idle");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
 
-  const [category, setCategory] = useState<Category>("social");
+  const [category, setCategory] = useState<Category>("moments");
 
   const [duration, setDuration] = useState(0);
   const intervalRef = useRef<any>(null);
