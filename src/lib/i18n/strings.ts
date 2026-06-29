@@ -11,6 +11,7 @@ export const strings = {
       townFallback: "around you",
     },
     categories: {
+      all: "All",
       moments: "Moments",
       aroundYou: "Around You",
       momentsDescription: "Stories that make us laugh, feel, or say only here.",
@@ -26,6 +27,10 @@ export const strings = {
     actions: {
       save: "Save",
       saved: "Saved",
+    },
+    feed: {
+      emptyTitle: "No voices here yet",
+      emptyBody: "Try another category or come back soon.",
     },
     myVoices: {
       emptyTitle: "No voices published yet",
@@ -58,6 +63,7 @@ export const strings = {
       townFallback: "autour de toi",
     },
     categories: {
+      all: "Tout",
       moments: "Moments",
       aroundYou: "Autour de toi",
       momentsDescription:
@@ -74,6 +80,10 @@ export const strings = {
     actions: {
       save: "Sauvegarder",
       saved: "Sauvegardee",
+    },
+    feed: {
+      emptyTitle: "Aucune voix ici pour l'instant",
+      emptyBody: "Essaie une autre categorie ou reviens bientot.",
     },
     myVoices: {
       emptyTitle: "Aucune voix publiee",

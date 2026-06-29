@@ -23,12 +23,14 @@ type Props = {
   item: AudioPost;
   nextItem?: AudioPost;
   sharedNextSoundRef: React.MutableRefObject<Audio.Sound | null>;
+  showCategoryHeader?: boolean;
 };
 
 export default function AudioCard({
   item,
   nextItem,
   sharedNextSoundRef,
+  showCategoryHeader = true,
 }: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
@@ -252,35 +254,39 @@ export default function AudioCard({
               GRIOT
             </Text>
 
-            <View
-              className="rounded-full border border-white/10"
-              style={{
-                marginTop: isCompact ? 18 : 32,
-                paddingHorizontal: isCompact ? 18 : 20,
-                paddingVertical: isCompact ? 9 : 12,
-                backgroundColor: `${theme.primary}CC`,
-              }}
-            >
-              <Text
-                className="text-white font-semibold"
-                style={{ fontSize: isCompact ? 16 : 18 }}
+            {showCategoryHeader && (
+              <View
+                className="rounded-full border border-white/10"
+                style={{
+                  marginTop: isCompact ? 18 : 32,
+                  paddingHorizontal: isCompact ? 18 : 20,
+                  paddingVertical: isCompact ? 9 : 12,
+                  backgroundColor: `${theme.primary}CC`,
+                }}
               >
-                {categoryEmoji} {categoryLabel}
-              </Text>
-            </View>
+                <Text
+                  className="text-white font-semibold"
+                  style={{ fontSize: isCompact ? 16 : 18 }}
+                >
+                  {categoryEmoji} {categoryLabel}
+                </Text>
+              </View>
+            )}
 
-            <Text
-              className="text-white/85 text-center"
-              numberOfLines={isCompact ? 2 : 3}
-              style={{
-                marginTop: isCompact ? 12 : 16,
-                paddingHorizontal: isCompact ? 8 : 32,
-                fontSize: isCompact ? 14 : 16,
-                lineHeight: isCompact ? 18 : 22,
-              }}
-            >
-              {categoryDescription}
-            </Text>
+            {showCategoryHeader && (
+              <Text
+                className="text-white/85 text-center"
+                numberOfLines={isCompact ? 2 : 3}
+                style={{
+                  marginTop: isCompact ? 12 : 16,
+                  paddingHorizontal: isCompact ? 8 : 32,
+                  fontSize: isCompact ? 14 : 16,
+                  lineHeight: isCompact ? 18 : 22,
+                }}
+              >
+                {categoryDescription}
+              </Text>
+            )}
           </View>
 
           {/* CENTER — VOICE */}
@@ -292,13 +298,13 @@ export default function AudioCard({
             }}
           >
             <Text
-              className="text-white text-center font-medium"
+              className="text-white text-center font-normal"
               numberOfLines={isCompact ? 4 : 5}
               adjustsFontSizeToFit
               minimumFontScale={0.72}
               style={{
-                fontSize: isCompact ? 28 : 34,
-                lineHeight: isCompact ? 35 : 42,
+                fontSize: isCompact ? 25 : 32,
+                lineHeight: isCompact ? 31 : 40,
               }}
             >
               {item.transcript || t.audioCard.fallbackTranscript}
