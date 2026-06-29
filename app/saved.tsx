@@ -1,5 +1,6 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
+import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
@@ -19,10 +20,10 @@ export default function Saved() {
   const savedIds = useRecordingStore((s) => s.saved);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
-  const toggleSave = useRecordingStore((s) => s.toggleSave);
 
   const savedPosts = posts.filter((r) => savedIds.includes(r.id));
   const activePost = savedPosts.find((post) => post.id === activeId);
+  const activeTheme = getCategoryTheme(activePost?.category);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
@@ -54,10 +55,12 @@ export default function Saved() {
           {t.saved.emptyBody}
         </Text>
         <FloatingMic
+          activeRoute="saved"
+          accentColor={activeTheme.primary}
+          onPressFeed={() => router.push("/")}
+          onPressMyVoices={() => router.push("/my-voices")}
           onPressRecord={() => router.push("/record")}
-          onPressVoices={() => router.push("/")}
-          onToggleSave={() => {}}
-          isSaved={false}
+          onPressSaved={() => router.push("/saved")}
         />
       </View>
     );
@@ -88,10 +91,12 @@ export default function Saved() {
         })}
       />
       <FloatingMic
+        activeRoute="saved"
+        accentColor={activeTheme.primary}
+        onPressFeed={() => router.push("/")}
+        onPressMyVoices={() => router.push("/my-voices")}
         onPressRecord={() => router.push("/record")}
-        onPressVoices={() => router.push("/")}
-        onToggleSave={() => activePost && toggleSave(activePost.id)}
-        isSaved={Boolean(activePost)}
+        onPressSaved={() => router.push("/saved")}
       />
     </View>
   );

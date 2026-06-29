@@ -13,12 +13,19 @@ export const strings = {
     categories: {
       moments: "Moments",
       aroundYou: "Around You",
+      momentsDescription: "Stories that make us laugh, feel, or say only here.",
+      aroundYouDescription:
+        "What is happening nearby. Info, alerts, tips and more.",
     },
     floatingMic: {
-      voices: "Voices",
+      feed: "Feed",
+      myVoices: "My Voices",
       saved: "Saved",
-      save: "Save",
       shareVoice: "Share your voice",
+    },
+    actions: {
+      save: "Save",
+      saved: "Saved",
     },
     myVoices: {
       emptyTitle: "No voices published yet",
@@ -53,12 +60,20 @@ export const strings = {
     categories: {
       moments: "Moments",
       aroundYou: "Autour de toi",
+      momentsDescription:
+        "Des histoires qui font rire, ressentir, ou dire seulement ici.",
+      aroundYouDescription:
+        "Ce qui se passe tout pres. Infos, alertes, conseils et plus.",
     },
     floatingMic: {
-      voices: "Voix",
+      feed: "Fil",
+      myVoices: "Mes voix",
       saved: "Sauvegardee",
-      save: "Sauvegarder",
       shareVoice: "Partage ta voix",
+    },
+    actions: {
+      save: "Sauvegarder",
+      saved: "Sauvegardee",
     },
     myVoices: {
       emptyTitle: "Aucune voix publiee",

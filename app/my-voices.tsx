@@ -1,5 +1,6 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
+import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
@@ -19,13 +20,11 @@ export default function MyVoices() {
   const myPostIds = useRecordingStore((s) => s.myPostIds);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
-  const toggleSave = useRecordingStore((s) => s.toggleSave);
-  const isSavedFn = useRecordingStore((s) => s.isSaved);
   const triggerStopAllAudio = useRecordingStore((s) => s.triggerStopAllAudio);
 
   const myPosts = posts.filter((post) => myPostIds.includes(post.id));
   const activePost = myPosts.find((post) => post.id === activeId);
-  const isSaved = activePost ? isSavedFn(activePost.id) : false;
+  const activeTheme = getCategoryTheme(activePost?.category);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
@@ -56,10 +55,12 @@ export default function MyVoices() {
           {t.myVoices.emptyBody}
         </Text>
         <FloatingMic
+          activeRoute="myVoices"
+          accentColor={activeTheme.primary}
+          onPressFeed={() => router.push("/")}
+          onPressMyVoices={() => router.push("/my-voices")}
           onPressRecord={() => router.push("/record")}
-          onPressVoices={() => router.push("/")}
-          onToggleSave={() => {}}
-          isSaved={false}
+          onPressSaved={() => router.push("/saved")}
         />
       </View>
     );
@@ -90,10 +91,12 @@ export default function MyVoices() {
         })}
       />
       <FloatingMic
+        activeRoute="myVoices"
+        accentColor={activeTheme.primary}
+        onPressFeed={() => router.push("/")}
+        onPressMyVoices={() => router.push("/my-voices")}
         onPressRecord={() => router.push("/record")}
-        onPressVoices={() => router.push("/")}
-        onToggleSave={() => activePost && toggleSave(activePost.id)}
-        isSaved={isSaved}
+        onPressSaved={() => router.push("/saved")}
       />
     </View>
   );

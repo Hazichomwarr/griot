@@ -2,6 +2,7 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
 import NowLiveToast from "@/src/components/NowLiveToast";
+import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getPosts } from "@/src/services/postService";
 import type {
   AudioPost,
@@ -66,11 +67,8 @@ export default function App() {
 
   const incrementViews = useRecordingStore((s) => s.incrementViews);
 
-  const isSavedFn = useRecordingStore((s) => s.isSaved);
-  const toggleSaveFn = useRecordingStore((s) => s.toggleSave);
-
   const activePost = posts.find((p) => p.id === activeId);
-  const isSaved = activeId ? isSavedFn(activeId) : false;
+  const activeTheme = getCategoryTheme(activePost?.category);
 
   const [showToast, setShowToast] = useState(false);
 
@@ -154,10 +152,12 @@ export default function App() {
 
       {/* FLOATING SYSTEM */}
       <FloatingMic
+        activeRoute="feed"
+        accentColor={activeTheme.primary}
+        onPressFeed={() => router.push("/")}
+        onPressMyVoices={() => router.push("/my-voices")}
         onPressRecord={() => router.push("/record")}
-        onPressVoices={() => router.push("/saved")}
-        onToggleSave={() => activePost && toggleSaveFn(activePost.id)}
-        isSaved={isSaved}
+        onPressSaved={() => router.push("/saved")}
       />
 
       {/* FEEDBACK */}

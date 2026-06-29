@@ -2,8 +2,8 @@
 
 import { getStrings } from "@/src/lib/i18n/strings";
 import * as Haptics from "expo-haptics";
-import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { useEffect } from "react";
+import { Dimensions, Pressable, Text, View } from "react-native";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -13,30 +13,34 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
 type Props = {
+  activeRoute: "feed" | "myVoices" | "saved";
+  accentColor?: string;
+  onPressFeed: () => void;
+  onPressMyVoices: () => void;
   onPressRecord: () => void;
-  onPressVoices: () => void;
-  onToggleSave: () => void;
-  isSaved: boolean;
+  onPressSaved: () => void;
 };
 
 export default function FloatingMic({
+  activeRoute,
+  accentColor = "#E6B566",
+  onPressFeed,
+  onPressMyVoices,
   onPressRecord,
-  onPressVoices,
-  onToggleSave,
-  isSaved,
+  onPressSaved,
 }: Props) {
   const insets = useSafeAreaInsets();
   const t = getStrings();
+  const isCompact = SCREEN_WIDTH < 390;
+  const sideItemWidth = 64;
+  const micSlotWidth = isCompact ? 78 : 96;
+  const micSize = isCompact ? 64 : 80;
 
   const scale = useSharedValue(1);
   const glow = useSharedValue(0.7);
-
-  const [localSaved, setLocalSaved] = useState(isSaved);
-  //Sync when global changes
-  useEffect(() => {
-    setLocalSaved(isSaved);
-  }, [isSaved]);
 
   // 🫀 breathing loop
   useEffect(() => {
@@ -61,62 +65,120 @@ export default function FloatingMic({
       className="absolute bottom-0 left-0 right-0 items-center z-50"
       style={{ paddingBottom: insets.bottom + 10 }}
     >
-      {/* NAV */}
-      <View className="w-full flex-row justify-between px-10 mb-2">
-        <Pressable onPress={onPressVoices}>
-          <Text className="text-yellow-400 text-xs">
-            {t.floatingMic.voices}
+      <View
+        className="rounded-[28px] border border-white/15 bg-black/75 flex-row items-center justify-between"
+        style={{
+          width: "92%",
+          paddingHorizontal: isCompact ? 10 : 32,
+          paddingVertical: isCompact ? 10 : 12,
+        }}
+      >
+        <Pressable
+          onPress={onPressFeed}
+          className="items-center"
+          style={{ width: sideItemWidth }}
+        >
+          <Text
+            className="text-xl"
+            style={{ color: activeRoute === "feed" ? accentColor : "#8A8A8A" }}
+          >
+            ⌂
+          </Text>
+          <Text
+            className="text-xs mt-1"
+            style={{ color: activeRoute === "feed" ? accentColor : "#B8B8B8" }}
+          >
+            {t.floatingMic.feed}
           </Text>
         </Pressable>
 
         <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setLocalSaved((prev) => !prev); // instant UI update
-            onToggleSave(); // then real state update
-          }}
+          onPress={onPressMyVoices}
+          className="items-center"
+          style={{ width: sideItemWidth }}
         >
           <Text
-            className={`text-xs ${localSaved ? "text-yellow-400" : "text-white opacity-60"}`}
+            className="text-xl"
+            style={{
+              color: activeRoute === "myVoices" ? accentColor : "#8A8A8A",
+            }}
           >
-            {localSaved ? t.floatingMic.saved : t.floatingMic.save}
+            ●
+          </Text>
+          <Text
+            className="text-xs mt-1"
+            style={{
+              color: activeRoute === "myVoices" ? accentColor : "#B8B8B8",
+            }}
+          >
+            {t.floatingMic.myVoices}
+          </Text>
+        </Pressable>
+
+        <View className="items-center" style={{ width: micSlotWidth }}>
+          <Animated.View
+            className="absolute rounded-full"
+            style={[
+              glowStyle,
+              {
+                width: micSize,
+                height: micSize,
+                backgroundColor: `${accentColor}24`,
+              },
+            ]}
+          />
+
+          <Animated.View style={animatedStyle}>
+            <Pressable
+              onPressIn={() => {
+                scale.value = withSpring(0.9);
+              }}
+              onPressOut={() => {
+                scale.value = withSpring(1.05);
+              }}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPressRecord();
+              }}
+              className="rounded-full items-center justify-center"
+              style={{
+                width: micSize,
+                height: micSize,
+                backgroundColor: accentColor,
+                shadowColor: accentColor,
+                shadowOpacity: 0.9,
+                shadowRadius: 25,
+                elevation: 12,
+              }}
+            >
+              <Text className="text-black text-2xl">🎤</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+
+        <Pressable
+          onPress={onPressSaved}
+          className="items-center"
+          style={{ width: sideItemWidth }}
+        >
+          <Text
+            className="text-xl"
+            style={{
+              color: activeRoute === "saved" ? accentColor : "#8A8A8A",
+            }}
+          >
+            ▰
+          </Text>
+          <Text
+            className="text-xs mt-1"
+            style={{
+              color: activeRoute === "saved" ? accentColor : "#B8B8B8",
+            }}
+          >
+            {t.floatingMic.saved}
           </Text>
         </Pressable>
       </View>
-
-      {/* GLOW LAYER */}
-      <Animated.View
-        style={glowStyle}
-        className="absolute w-20 h-20 rounded-full bg-yellow-400/10"
-      />
-
-      {/* MAIN MIC */}
-      <Animated.View style={animatedStyle}>
-        <Pressable
-          onPressIn={() => {
-            scale.value = withSpring(0.9);
-          }}
-          onPressOut={() => {
-            scale.value = withSpring(1.05);
-          }}
-          onPress={onPressRecord}
-          className="w-20 h-20 rounded-full items-center justify-center"
-          style={{
-            backgroundColor: "#E6B566",
-            shadowColor: "#E6B566",
-            shadowOpacity: 0.9,
-            shadowRadius: 25,
-            elevation: 12,
-          }}
-        >
-          <Text className="text-black text-2xl">🎤</Text>
-        </Pressable>
-      </Animated.View>
-
-      {/* LABEL */}
-      <Text className="text-yellow-400 mt-2 text-sm">
-        {t.floatingMic.shareVoice}
-      </Text>
     </View>
   );
 }
