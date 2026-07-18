@@ -44,6 +44,9 @@ type Store = {
   toggleSave: (id: string) => void;
   isSaved: (id: string) => boolean;
 
+  viewedPostIds: string[];
+  hasViewedPost: (id: string) => boolean;
+
   myPostIds: string[];
   addMyPostId: (id: string) => void;
 
@@ -64,12 +67,14 @@ export const useRecordingStore = create<Store>((set, get) => ({
   stopAllAudioFlag: 0,
 
   saved: [],
+  viewedPostIds: [],
   myPostIds: [],
 
   triggerStopAllAudio: () =>
     set((state) => ({ stopAllAudioFlag: state.stopAllAudioFlag + 1 })),
 
-  setActive: (id) => set({ activeId: id }),
+  setActive: (id) =>
+    set((state) => (state.activeId === id ? state : { activeId: id })),
 
   setPosts: (posts) => set({ posts }),
   deleteRecording: (id) =>
@@ -78,11 +83,23 @@ export const useRecordingStore = create<Store>((set, get) => ({
     })),
 
   incrementViews: (id) =>
-    set((state) => ({
-      posts: state.posts.map((r) =>
-        r.id === id ? { ...r, views: r.views + 1 } : r,
-      ),
-    })),
+    set((state) => {
+      if (state.viewedPostIds.includes(id)) {
+        return state;
+      }
+
+      return {
+        viewedPostIds: [...state.viewedPostIds, id],
+        posts: state.posts.map((r) =>
+          r.id === id ? { ...r, views: r.views + 1 } : r,
+        ),
+      };
+    }),
+
+  hasViewedPost: (id) => {
+    return get().viewedPostIds.includes(id);
+  },
+
   addReaction: (id, emoji) =>
     set((state) => ({
       posts: state.posts.map((r) =>

@@ -54,9 +54,9 @@ function sortPostsByDistance(posts: AudioPost[], userLocation?: FeedLocation) {
   if (!userLocation) return posts;
 
   return posts
-    .map((post, index) => {
+    .map((post, originalNewestIndex) => {
       if (!hasPostCoordinates(post)) {
-        return { post, index, distanceKm: null };
+        return { post, originalNewestIndex, distanceKm: null };
       }
 
       const distanceKm = calculateDistanceKm(
@@ -67,7 +67,7 @@ function sortPostsByDistance(posts: AudioPost[], userLocation?: FeedLocation) {
       );
 
       return {
-        index,
+        originalNewestIndex,
         distanceKm,
         post: {
           ...post,
@@ -78,7 +78,7 @@ function sortPostsByDistance(posts: AudioPost[], userLocation?: FeedLocation) {
     })
     .sort((a, b) => {
       if (a.distanceKm === null && b.distanceKm === null) {
-        return a.index - b.index;
+        return a.originalNewestIndex - b.originalNewestIndex;
       }
 
       if (a.distanceKm === null) return 1;
@@ -86,7 +86,7 @@ function sortPostsByDistance(posts: AudioPost[], userLocation?: FeedLocation) {
 
       const distanceDelta = a.distanceKm - b.distanceKm;
       if (Math.abs(distanceDelta) < APPROXIMATE_DISTANCE_TIE_KM) {
-        return a.index - b.index;
+        return a.originalNewestIndex - b.originalNewestIndex;
       }
 
       return distanceDelta;
@@ -185,4 +185,29 @@ export async function createPost(post: {
 
   console.log("createPost insert succeeded:", JSON.stringify(data, null, 2));
   return mapDbPostToAudioPost(data);
+}
+
+export async function incrementPostViews(postId: string): Promise<boolean> {
+  const { error } = await supabase.rpc("increment_post_views", {
+    post_id: postId,
+  });
+
+  if (error) {
+    console.log(
+      "incrementPostViews failed:",
+      JSON.stringify(
+        {
+          postId,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        },
+        null,
+        2,
+      ),
+    );
+    return false;
+  }
+
+  return true;
 }

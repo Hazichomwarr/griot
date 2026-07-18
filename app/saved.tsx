@@ -5,7 +5,7 @@ import { getStrings } from "@/src/lib/i18n/strings";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import { router } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Dimensions, FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -21,14 +21,17 @@ export default function Saved() {
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
-  const savedPosts = posts.filter((r) => savedIds.includes(r.id));
+  const savedPosts = useMemo(
+    () => posts.filter((r) => savedIds.includes(r.id)),
+    [posts, savedIds],
+  );
   const activePost = savedPosts.find((post) => post.id === activeId);
   const activeTheme = getCategoryTheme(activePost?.category);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     const item = viewableItems[0]?.item;
-    if (item?.id) {
+    if (item?.id && item.id !== useRecordingStore.getState().activeId) {
       setActive(item.id);
     }
   });
@@ -40,10 +43,12 @@ export default function Saved() {
   }, []);
 
   useEffect(() => {
-    if (savedPosts.length > 0 && !activePost) {
-      setActive(savedPosts[0].id);
+    const desiredId = savedPosts[0]?.id;
+
+    if (desiredId && desiredId !== activeId && !activePost) {
+      setActive(desiredId);
     }
-  }, [savedPosts, activePost]);
+  }, [savedPosts, activeId, activePost, setActive]);
 
   if (savedPosts.length === 0) {
     return (

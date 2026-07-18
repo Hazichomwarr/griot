@@ -71,8 +71,6 @@ export default function App() {
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
-  const incrementViews = useRecordingStore((s) => s.incrementViews);
-
   const [selectedFilter, setSelectedFilter] = useState<CategoryFilter>("all");
   const filteredPosts = useMemo(
     () =>
@@ -151,10 +149,9 @@ export default function App() {
       const item = viewableItems[0]?.item;
       if (item?.id) {
         setActive(item.id);
-        incrementViews(item.id);
       }
     },
-    [incrementViews, setActive],
+    [setActive],
   );
   const viewabilityConfig = useMemo(
     () => ({ itemVisiblePercentThreshold: 80 }),

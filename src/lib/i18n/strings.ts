@@ -9,6 +9,8 @@ export const strings = {
       neighborhoodFallback: "nearby",
       now: "now",
       away: "away",
+      listens: (count: number) =>
+        count === 1 ? "1 listen" : `${count} listens`,
       townFallback: "around you",
     },
     categories: {
@@ -62,6 +64,8 @@ export const strings = {
       neighborhoodFallback: "tout pres",
       now: "maintenant",
       away: "d'ici",
+      listens: (count: number) =>
+        count === 1 ? "1 ecoute" : `${count} ecoutes`,
       townFallback: "autour de toi",
     },
     categories: {

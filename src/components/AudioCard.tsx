@@ -3,6 +3,7 @@
 import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
+import { incrementPostViews } from "@/src/services/postService";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -60,12 +61,15 @@ export default function AudioCard({
 
   const toggleSave = useRecordingStore((s) => s.toggleSave);
   const isSaved = useRecordingStore((s) => s.isSaved(item.id));
+  const incrementViews = useRecordingStore((s) => s.incrementViews);
+  const hasViewedPost = useRecordingStore((s) => s.hasViewedPost);
 
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const nextSoundRef = sharedNextSoundRef;
+  const viewRegistrationStartedRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -80,7 +84,25 @@ export default function AudioCard({
     setProgress(0);
     setPositionMillis(0);
     setDurationMillis(item.duration ? item.duration * 1000 : 0);
+    viewRegistrationStartedRef.current = false;
   }, [item.id, item.duration]);
+
+  function registerView() {
+    if (viewRegistrationStartedRef.current || hasViewedPost(item.id)) return;
+
+    viewRegistrationStartedRef.current = true;
+    incrementViews(item.id);
+
+    incrementPostViews(item.id)
+      .then((succeeded) => {
+        if (!succeeded) {
+          console.log("View persisted locally only:", item.id);
+        }
+      })
+      .catch((err) => {
+        console.log("View persistence skipped:", err);
+      });
+  }
 
   // 🎧 PLAYBACK ENGINE
   async function handlePlayback() {
@@ -148,6 +170,7 @@ export default function AudioCard({
           const status = await sound.getStatusAsync();
           if (status.isLoaded) {
             await sound.playAsync();
+            registerView();
           }
         }
 
@@ -197,6 +220,7 @@ export default function AudioCard({
       await soundRef.current.pauseAsync();
     } else {
       await soundRef.current.playAsync();
+      registerView();
     }
   }
 
@@ -320,6 +344,7 @@ export default function AudioCard({
             >
               {item.username} • {neighborhood} •{" "}
               <Text style={{ color: theme.light }}>{t.audioCard.now}</Text>
+              {` • ${t.audioCard.listens(item.views)}`}
               {item.distance
                 ? ` • 📍 ${item.distance} ${t.audioCard.away}`
                 : ""}
