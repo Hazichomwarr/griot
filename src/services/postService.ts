@@ -126,6 +126,7 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
 
 export async function getPosts(options?: {
   userLocation?: FeedLocation | null;
+  throwOnError?: boolean;
 }): Promise<AudioPost[]> {
   const { data, error } = await supabase
     .from("posts")
@@ -135,6 +136,10 @@ export async function getPosts(options?: {
 
   if (error) {
     console.log("getPosts error:", JSON.stringify(error, null, 2));
+    if (options?.throwOnError) {
+      throw error;
+    }
+
     return [];
   }
 

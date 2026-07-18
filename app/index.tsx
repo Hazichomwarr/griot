@@ -11,7 +11,14 @@ import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
+import {
+  Dimensions,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -88,11 +95,37 @@ export default function App() {
   ];
 
   const [showToast, setShowToast] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const listRef = useRef<FlatList<AudioPost>>(null);
+  const skipNextAutoScrollRef = useRef(false);
 
   //console.log("recordings:", posts);
+
+  const loadFeedPosts = useCallback(async () => {
+    const userLocation = await getCurrentFeedLocation();
+    const posts = await getPosts({ userLocation, throwOnError: true });
+
+    console.log("Loaded UI posts:", posts);
+    setPosts(posts);
+  }, [setPosts]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+
+    setRefreshing(true);
+    skipNextAutoScrollRef.current = true;
+
+    try {
+      await loadFeedPosts();
+    } catch (err) {
+      skipNextAutoScrollRef.current = false;
+      console.log("refresh feed error:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadFeedPosts, refreshing]);
 
   useEffect(() => {
     if (sharedNextSoundRef.current) {
@@ -103,15 +136,15 @@ export default function App() {
 
   useEffect(() => {
     async function loadPosts() {
-      const userLocation = await getCurrentFeedLocation();
-      const posts = await getPosts({ userLocation });
-
-      console.log("Loaded UI posts:", posts);
-      setPosts(posts);
+      try {
+        await loadFeedPosts();
+      } catch (err) {
+        console.log("initial feed load error:", err);
+      }
     }
 
     loadPosts();
-  }, [setPosts]);
+  }, [loadFeedPosts]);
 
   // AutoPlay when app opens or filter changes
   useEffect(() => {
@@ -132,6 +165,11 @@ export default function App() {
 
     const index = filteredPosts.findIndex((p) => p.id === activeId);
     if (index === -1) return;
+
+    if (skipNextAutoScrollRef.current) {
+      skipNextAutoScrollRef.current = false;
+      return;
+    }
 
     const scrollTimeout = setTimeout(() => {
       if (index >= filteredPosts.length) return;
@@ -188,6 +226,9 @@ export default function App() {
           snapToAlignment="start"
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           getItemLayout={(_, index) => ({
