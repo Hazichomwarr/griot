@@ -55,6 +55,10 @@ type Store = {
   reactedPostIds: string[];
   hasReactedToPost: (id: string) => boolean;
 
+  reportedPostIds: string[];
+  hasReportedPost: (id: string) => boolean;
+  markPostReported: (id: string) => void;
+
   myPostIds: string[];
   addMyPostId: (id: string) => void;
   removePost: (postId: string) => Promise<void>;
@@ -80,6 +84,7 @@ export const useRecordingStore = create<Store>((set, get) => ({
   savedHydrating: false,
   viewedPostIds: [],
   reactedPostIds: [],
+  reportedPostIds: [],
   myPostIds: [],
 
   triggerStopAllAudio: () =>
@@ -137,6 +142,21 @@ export const useRecordingStore = create<Store>((set, get) => ({
   hasReactedToPost: (id) => {
     return get().reactedPostIds.includes(id);
   },
+
+  hasReportedPost: (id) => {
+    return get().reportedPostIds.includes(id);
+  },
+
+  markPostReported: (id) =>
+    set((state) => {
+      if (state.reportedPostIds.includes(id)) {
+        return state;
+      }
+
+      return {
+        reportedPostIds: [...state.reportedPostIds, id],
+      };
+    }),
 
   hydrateSaved: async () => {
     if (get().savedHydrated || get().savedHydrating) return;
@@ -220,6 +240,7 @@ export const useRecordingStore = create<Store>((set, get) => ({
       saved: state.saved.filter((id) => id !== postId),
       viewedPostIds: state.viewedPostIds.filter((id) => id !== postId),
       reactedPostIds: state.reactedPostIds.filter((id) => id !== postId),
+      reportedPostIds: state.reportedPostIds.filter((id) => id !== postId),
       activeId: state.activeId === postId ? null : state.activeId,
     }));
 

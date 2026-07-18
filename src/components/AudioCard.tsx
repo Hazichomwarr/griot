@@ -33,6 +33,8 @@ type Props = {
   showCategoryHeader?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
+  onReport?: () => void;
+  reported?: boolean;
 };
 
 export default function AudioCard({
@@ -42,6 +44,8 @@ export default function AudioCard({
   showCategoryHeader = true,
   onDelete,
   deleting = false,
+  onReport,
+  reported = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
@@ -486,6 +490,34 @@ export default function AudioCard({
                         🗑
                       </Text>
                     )}
+                  </Pressable>
+                )}
+                {onReport && (
+                  <Pressable
+                    disabled={reported}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onReport();
+                    }}
+                    className="rounded-full border border-white/40 items-center justify-center"
+                    style={{
+                      width: isCompact ? 42 : 48,
+                      height: isCompact ? 42 : 48,
+                      marginLeft: isCompact ? 10 : 14,
+                      opacity: reported ? 0.45 : 1,
+                    }}
+                    accessibilityLabel={
+                      reported
+                        ? t.report.alreadyReported
+                        : t.report.reportVoice
+                    }
+                  >
+                    <Text
+                      className="text-base"
+                      style={{ color: reported ? "#A3A3A3" : "#FFFFFF" }}
+                    >
+                      {reported ? "✓" : "⚑"}
+                    </Text>
                   </Pressable>
                 )}
               </View>

@@ -2,9 +2,11 @@
 import AudioCard from "@/src/components/AudioCard";
 import FloatingMic from "@/src/components/FloatingMic";
 import NowLiveToast from "@/src/components/NowLiveToast";
+import ReportVoiceModal from "@/src/components/ReportVoiceModal";
 import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
-import { getPosts } from "@/src/services/postService";
+import { getPosts, reportPost } from "@/src/services/postService";
+import type { ReportReason } from "@/src/services/postService";
 import type { AudioPost, Category } from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
@@ -12,6 +14,7 @@ import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Dimensions,
   FlatList,
   Pressable,
@@ -77,8 +80,13 @@ export default function App() {
   const setPosts = useRecordingStore((s) => s.setPosts);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
+  const myPostIds = useRecordingStore((s) => s.myPostIds);
+  const hasReportedPost = useRecordingStore((s) => s.hasReportedPost);
+  const markPostReported = useRecordingStore((s) => s.markPostReported);
 
   const [selectedFilter, setSelectedFilter] = useState<CategoryFilter>("all");
+  const [reportingPostId, setReportingPostId] = useState<string | null>(null);
+  const [submittingReport, setSubmittingReport] = useState(false);
   const filteredPosts = useMemo(
     () =>
       selectedFilter === "all"
@@ -126,6 +134,56 @@ export default function App() {
       setRefreshing(false);
     }
   }, [loadFeedPosts, refreshing]);
+
+  const openReport = useCallback(
+    (postId: string) => {
+      if (myPostIds.includes(postId) || hasReportedPost(postId)) return;
+
+      setReportingPostId(postId);
+    },
+    [hasReportedPost, myPostIds],
+  );
+
+  const closeReport = useCallback(() => {
+    if (submittingReport) return;
+
+    setReportingPostId(null);
+  }, [submittingReport]);
+
+  const submitReport = useCallback(
+    async (reason: ReportReason, details: string) => {
+      if (!reportingPostId || submittingReport) return;
+
+      if (myPostIds.includes(reportingPostId)) {
+        console.log("Report skipped for own post:", reportingPostId);
+        return;
+      }
+
+      setSubmittingReport(true);
+
+      try {
+        await reportPost({
+          postId: reportingPostId,
+          reason,
+          details,
+        });
+        markPostReported(reportingPostId);
+        Alert.alert(t.report.reportSubmitted);
+      } catch (error) {
+        console.log("report voice error:", error);
+        throw error;
+      } finally {
+        setSubmittingReport(false);
+      }
+    },
+    [
+      markPostReported,
+      myPostIds,
+      reportingPostId,
+      submittingReport,
+      t.report.reportSubmitted,
+    ],
+  );
 
   useEffect(() => {
     if (sharedNextSoundRef.current) {
@@ -208,6 +266,12 @@ export default function App() {
               nextItem={filteredPosts[index + 1]}
               sharedNextSoundRef={sharedNextSoundRef}
               showCategoryHeader={false}
+              onReport={
+                myPostIds.includes(item.id)
+                  ? undefined
+                  : () => openReport(item.id)
+              }
+              reported={hasReportedPost(item.id)}
             />
           )}
           onScrollToIndexFailed={(info) => {
@@ -291,6 +355,12 @@ export default function App() {
 
       {/* FEEDBACK */}
       <NowLiveToast visible={showToast} onClose={() => setShowToast(false)} />
+      <ReportVoiceModal
+        visible={reportingPostId !== null}
+        submitting={submittingReport}
+        onClose={closeReport}
+        onSubmit={submitReport}
+      />
     </View>
   );
 }

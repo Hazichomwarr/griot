@@ -12,6 +12,21 @@ type FeedLocation = {
   longitude: number;
 };
 
+export type ReportReason =
+  | "harassment"
+  | "hate"
+  | "violence"
+  | "sexual"
+  | "spam"
+  | "misinformation"
+  | "other";
+
+type ReportPostInput = {
+  postId: string;
+  reason: ReportReason;
+  details?: string;
+};
+
 type DbPost = {
   id: string;
   audio_url: string | null;
@@ -254,6 +269,22 @@ export async function incrementReaction(
 export async function deletePost(postId: string): Promise<void> {
   // Cloudinary asset cleanup needs a secure backend job; never ship secrets here.
   const { error } = await supabase.from("posts").delete().eq("id", postId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function reportPost({
+  postId,
+  reason,
+  details,
+}: ReportPostInput): Promise<void> {
+  const { error } = await supabase.from("post_reports").insert({
+    post_id: postId,
+    reason,
+    details: details?.trim() || null,
+  });
 
   if (error) {
     throw error;
