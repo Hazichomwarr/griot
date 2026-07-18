@@ -17,6 +17,7 @@ export type AudioPost = {
   id: string;
   uri: string;
   duration?: number; // audio duration
+  title?: string | null;
 
   views: number;
   reactions: Reactions;

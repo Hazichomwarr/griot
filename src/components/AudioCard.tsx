@@ -2,6 +2,7 @@
 
 import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
+import { getPostTitle } from "@/src/lib/postPresentation";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
 import {
   incrementPostViews,
@@ -52,8 +53,9 @@ export default function AudioCard({
   const isCompact = usableHeight < 700 || SCREEN_WIDTH < 390;
   const t = getStrings();
   const country = item.country || t.audioCard.countryFallback;
-  const neighborhood = item.neighborhood || t.audioCard.neighborhoodFallback;
+  const neighborhood = item.neighborhood?.trim();
   const town = item.town || t.audioCard.townFallback;
+  const displayTitle = getPostTitle(item, t);
   const theme = getCategoryTheme(item.category);
   const categoryLabel =
     item.category === "around_you"
@@ -94,6 +96,12 @@ export default function AudioCard({
     item.duration ? item.duration * 1000 : 0,
   );
   const waveformCount = isCompact ? 32 : 48;
+  const metadata = [
+    neighborhood,
+    t.audioCard.now,
+    t.audioCard.listens(item.views),
+    item.distance ? `📍 ${item.distance} ${t.audioCard.away}` : "",
+  ].filter(Boolean);
 
   useEffect(() => {
     setIsPlaying(false);
@@ -363,7 +371,7 @@ export default function AudioCard({
                 lineHeight: isCompact ? 31 : 40,
               }}
             >
-              {item.transcript || t.audioCard.fallbackTranscript}
+              {displayTitle}
             </Text>
 
             <Text
@@ -374,12 +382,7 @@ export default function AudioCard({
                 fontSize: isCompact ? 14 : 16,
               }}
             >
-              {item.username} • {neighborhood} •{" "}
-              <Text style={{ color: theme.light }}>{t.audioCard.now}</Text>
-              {` • ${t.audioCard.listens(item.views)}`}
-              {item.distance
-                ? ` • 📍 ${item.distance} ${t.audioCard.away}`
-                : ""}
+              {metadata.join(" • ")}
             </Text>
 
             <View

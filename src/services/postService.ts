@@ -31,6 +31,7 @@ type DbPost = {
   id: string;
   audio_url: string | null;
   duration?: number | null;
+  title?: string | null;
   views?: number | null;
   reactions?: Reactions | null;
   username?: string | null;
@@ -122,6 +123,7 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
     id: post.id,
     uri: post.audio_url ?? "",
     duration: post.duration ?? 0,
+    title: post.title ?? null,
     views: post.views ?? 0,
     reactions: normalizeReactions(post.reactions),
     username: post.username ?? "Anonymous",
@@ -166,6 +168,7 @@ export async function getPosts(options?: {
 export async function createPost(post: {
   audio_url: string;
   duration?: number;
+  title: string;
   views?: number;
   reactions?: Record<string, number>;
   username: string;
@@ -181,6 +184,7 @@ export async function createPost(post: {
   const dbPost = {
     audio_url: post.audio_url,
     duration: post.duration ?? 0,
+    title: post.title.trim(),
     views: post.views ?? 0,
     reactions: post.reactions ?? { "😂": 0, "🚨": 0, "👍": 0 },
     username: post.username,

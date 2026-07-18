@@ -1,10 +1,22 @@
 // app/record.tsx
 import { getStrings, type Strings } from "@/src/lib/i18n/strings";
+import {
+  getVoiceTitleError,
+  MAX_VOICE_TITLE_LENGTH,
+} from "@/src/lib/postPresentation";
 import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
 import * as Location from "expo-location";
+import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Platform, Pressable, Text, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createPost, getPosts } from "@/src/services/postService";
@@ -98,7 +110,7 @@ async function captureLocation(): Promise<CapturedLocation> {
   }
 }
 
-function firstValue(...values: Array<string | null | undefined>) {
+function firstValue(...values: (string | null | undefined)[]) {
   return values.find((value) => value && value.trim().length > 0);
 }
 
@@ -176,7 +188,7 @@ export default function Record() {
   // Stop all feed audio when entering record screen
   useEffect(() => {
     triggerStopAllAudio();
-  }, []);
+  }, [triggerStopAllAudio]);
 
   const setPosts = useRecordingStore((s) => s.setPosts);
   const deleteRecording = useRecordingStore((s) => s.deleteRecording);
@@ -184,14 +196,111 @@ export default function Record() {
 
   const [mode, setMode] = useState<Mode>("idle");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const previewSoundRef = useRef<Audio.Sound | null>(null);
 
   const [category, setCategory] = useState<Category>("moments");
 
   const [duration, setDuration] = useState(0);
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const [pendingDuration, setPendingDuration] = useState(0);
+  const [voiceTitle, setVoiceTitle] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   const [justPosted, setJustPosted] = useState(false);
   const [lastPostedId, setLastPostedId] = useState<string | null>(null);
+  const titleError = pendingUri ? getVoiceTitleError(voiceTitle, t) : "";
+  const trimmedTitle = voiceTitle.trim();
+  const canPublish =
+    Boolean(pendingUri) && !titleError && !isPublishing && mode !== "recording";
+
+  function goBackToFeed() {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/");
+  }
+
+  async function discardActiveRecording() {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+
+    const activeRecording = recordingRef.current;
+    if (activeRecording) {
+      try {
+        await activeRecording.stopAndUnloadAsync();
+      } catch (err) {
+        console.log("discard active recording error:", err);
+      }
+    }
+
+    recordingRef.current = null;
+    setRecording(null);
+    setMode("idle");
+    setDuration(0);
+  }
+
+  async function discardDraft() {
+    if (previewSoundRef.current) {
+      await previewSoundRef.current.unloadAsync().catch(() => {});
+      previewSoundRef.current = null;
+    }
+
+    setPendingUri(null);
+    setPendingDuration(0);
+    setVoiceTitle("");
+    setPublishError("");
+  }
+
+  function confirmDiscard(onDiscard: () => void) {
+    if (Platform.OS === "web" && typeof globalThis.confirm === "function") {
+      const confirmed = globalThis.confirm(
+        `${t.record.discardRecordingTitle}\n\n${t.record.discardRecordingMessage}`,
+      );
+
+      if (confirmed) {
+        onDiscard();
+      }
+
+      return;
+    }
+
+    Alert.alert(t.record.discardRecordingTitle, t.record.discardRecordingMessage, [
+      {
+        text: t.record.keepRecording,
+        style: "cancel",
+      },
+      {
+        text: t.record.discard,
+        style: "destructive",
+        onPress: onDiscard,
+      },
+    ]);
+  }
+
+  function handleBack() {
+    if (mode === "recording") {
+      confirmDiscard(() => {
+        void discardActiveRecording().then(goBackToFeed);
+      });
+      return;
+    }
+
+    if (pendingUri) {
+      confirmDiscard(() => {
+        void discardDraft().then(goBackToFeed);
+      });
+      return;
+    }
+
+    goBackToFeed();
+  }
 
   // 🎙 START RECORDING
   async function startRecording() {
@@ -212,6 +321,7 @@ export default function Record() {
       );
 
       setRecording(recording);
+      recordingRef.current = recording;
       setMode("recording");
 
       // timer when recording starts
@@ -226,80 +336,101 @@ export default function Record() {
     }
   }
 
-  // ⏹ STOP + AUTO POST
+  // ⏹ STOP + DRAFT
   async function stopRecording() {
     if (!recording) return;
 
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
     await recording.stopAndUnloadAsync();
     const uri = recording.getURI();
 
     setRecording(null);
+    recordingRef.current = null;
     setMode("idle");
 
     if (uri) {
-      try {
-        // 1. Upload audio to Cloudinary
-        const audioUrl = await uploadAudio(uri);
-
-        if (!audioUrl) {
-          console.log("Audio upload failed");
-          return;
-        }
-        console.log("Public Audio URL:", audioUrl);
-
-        const location = await captureLocation();
-        const place = await resolvePlace(location);
-
-        // 2. Create DB post
-        const createdPost = await createPost({
-          audio_url: audioUrl,
-          duration: Math.floor(duration / 1000),
-
-          views: 0,
-
-          reactions: {
-            "😂": 0,
-            "🚨": 0,
-            "👍": 0,
-          },
-
-          username: "Hamza",
-          avatar: "",
-          neighborhood: place.neighborhood,
-          town: place.town,
-          country: place.country,
-
-          category,
-
-          transcript: "",
-          latitude: location.latitude,
-          longitude: location.longitude,
-        });
-
-        if (!createdPost) {
-          console.log("DB post creation failed");
-          return;
-        }
-
-        setLastPostedId(createdPost.id);
-        addMyPostId(createdPost.id);
-
-        const posts = await getPosts();
-        setPosts(posts);
-
-        // feedback
-        setJustPosted(true);
-
-        setTimeout(() => {
-          setJustPosted(false);
-        }, 3000);
-      } catch (err) {
-        console.log("stopRecording upload error:", err);
-      }
+      setPendingUri(uri);
+      setPendingDuration(duration);
     }
     setDuration(0);
+  }
+
+  async function publishRecording() {
+    if (!pendingUri || !canPublish) return;
+
+    setIsPublishing(true);
+    setPublishError("");
+
+    try {
+      // 1. Upload audio to Cloudinary
+      const audioUrl = await uploadAudio(pendingUri);
+
+      if (!audioUrl) {
+        console.log("Audio upload failed");
+        setPublishError(t.record.publishError);
+        return;
+      }
+      console.log("Public Audio URL:", audioUrl);
+
+      const location = await captureLocation();
+      const place = await resolvePlace(location);
+
+      // 2. Create DB post
+      const createdPost = await createPost({
+        audio_url: audioUrl,
+        duration: Math.floor(pendingDuration / 1000),
+        title: trimmedTitle,
+
+        views: 0,
+
+        reactions: {
+          "😂": 0,
+          "🚨": 0,
+          "👍": 0,
+        },
+
+        username: "",
+        avatar: "",
+        neighborhood: place.neighborhood,
+        town: place.town,
+        country: place.country,
+
+        category,
+
+        transcript: "",
+        latitude: location.latitude,
+        longitude: location.longitude,
+      });
+
+      if (!createdPost) {
+        console.log("DB post creation failed");
+        setPublishError(t.record.publishError);
+        return;
+      }
+
+      setLastPostedId(createdPost.id);
+      addMyPostId(createdPost.id);
+
+      const posts = await getPosts();
+      setPosts(posts);
+      await discardDraft();
+
+      // feedback
+      setJustPosted(true);
+
+      setTimeout(() => {
+        setJustPosted(false);
+      }, 3000);
+    } catch (err) {
+      console.log("publishRecording error:", err);
+      setPublishError(t.record.publishError);
+    } finally {
+      setIsPublishing(false);
+    }
   }
 
   // 🔁 REDO
@@ -314,10 +445,42 @@ export default function Record() {
     startRecording();
   }
 
+  async function handleRecordAgain() {
+    await discardDraft();
+    setJustPosted(false);
+
+    if (recording) return;
+    void startRecording();
+  }
+
+  async function playPreview() {
+    if (!pendingUri) return;
+
+    try {
+      if (previewSoundRef.current) {
+        await previewSoundRef.current.replayAsync();
+        return;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: pendingUri },
+        { shouldPlay: true },
+      );
+      previewSoundRef.current = sound;
+    } catch (err) {
+      console.log("play preview error:", err);
+    }
+  }
+
   //cleanup
   useEffect(() => {
     return () => {
-      clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+      if (previewSoundRef.current) {
+        previewSoundRef.current.unloadAsync().catch(() => {});
+      }
     };
   }, []);
 
@@ -328,20 +491,35 @@ export default function Record() {
 
   return (
     <View
-      className="flex-1 bg-black justify-between px-6"
+      className="flex-1 bg-black px-6"
       style={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
+        paddingTop: insets.top + 14,
+        paddingBottom: insets.bottom + 24,
       }}
     >
-      {/* TOP */}
-      <View className="mx-auto">
-        <Text className="text-white text-2xl font-semibold">
+      <View className="flex-row items-center justify-between">
+        <Pressable
+          onPress={handleBack}
+          className="w-11 h-11 rounded-full bg-white/10 items-center justify-center"
+        >
+          <Text className="text-white text-2xl">‹</Text>
+        </Pressable>
+        <Text className="text-white/70 tracking-[6px] font-semibold">
+          GRIOT
+        </Text>
+        <View className="w-11 h-11" />
+      </View>
+
+      <View className="mt-8 items-center">
+        <Text className="text-white text-3xl font-semibold text-center">
           {t.record.title}
+        </Text>
+        <Text className="text-white/55 text-base text-center mt-3">
+          {t.record.prompt}
         </Text>
       </View>
 
-      <View className="mt-10 flex-row justify-center gap-4 mb-6">
+      <View className="mt-8 flex-row justify-center gap-4">
         {CATEGORIES.map((c: Categories) => (
           <Pressable
             key={c.key}
@@ -364,31 +542,130 @@ export default function Record() {
 
       {/* CENTER */}
       <View className="flex-1 items-center justify-center">
+        <View
+          className="absolute rounded-full border border-blue-400/10"
+          style={{ width: 270, height: 270 }}
+        />
+        <View
+          className="absolute rounded-full bg-blue-500/5 border border-blue-300/15"
+          style={{ width: 220, height: 220 }}
+        />
         <Pressable
+          onPress={() => {
+            if (pendingUri) {
+              void playPreview();
+            }
+          }}
           onPressIn={() => {
-            if (mode === "idle") startRecording();
+            if (mode === "idle" && !pendingUri && !isPublishing) {
+              startRecording();
+            }
           }}
           onPressOut={() => {
             if (mode === "recording") stopRecording();
           }}
-          className={`w-32 h-32 rounded-full items-center justify-center ${
-            mode === "recording" ? "bg-red-600" : "bg-neutral-800"
+          className={`w-36 h-36 rounded-full items-center justify-center border ${
+            mode === "recording"
+              ? "bg-red-600 border-red-300"
+              : pendingUri
+                ? "bg-blue-600 border-blue-200"
+                : "bg-neutral-900 border-blue-300/40"
           }`}
         >
           <Text className="text-white text-3xl">
-            {mode === "recording" ? "🔴" : "🎤"}
+            {mode === "recording" ? "●" : "🎤"}
           </Text>
         </Pressable>
 
-        <Text className="text-neutral-400 text-sm">
-          {mode === "idle" && t.record.holdToSpeak}
-          {mode === "recording" && t.record.releaseToPublish}
+        <Text className="text-neutral-300 text-base font-semibold mt-6">
+          {mode === "recording"
+            ? t.record.listening
+            : pendingUri
+              ? t.record.playPreview
+              : t.record.holdToSpeak}
+        </Text>
+        <Text className="text-neutral-500 text-sm mt-2">
+          {mode === "recording" ? t.record.releaseToFinish : ""}
         </Text>
 
         {mode === "recording" && (
           <Text className="text-white text-xl mt-4">{format(duration)}</Text>
         )}
       </View>
+
+      {pendingUri && (
+        <View className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 mb-4">
+          <Text className="text-white font-semibold mb-2">
+            {t.record.voiceTitleLabel}
+          </Text>
+          <TextInput
+            value={voiceTitle}
+            onChangeText={(value) => {
+              setVoiceTitle(value);
+              setPublishError("");
+            }}
+            maxLength={MAX_VOICE_TITLE_LENGTH}
+            editable={!isPublishing}
+            placeholder={t.record.voiceTitlePlaceholder}
+            placeholderTextColor="rgba(255,255,255,0.35)"
+            className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white text-base"
+          />
+          <View className="flex-row justify-between mt-2">
+            <Text className="text-red-200/80 text-xs">
+              {publishError || (voiceTitle.length > 0 ? titleError : "")}
+            </Text>
+            <Text className="text-white/45 text-xs">
+              {t.record.voiceTitleCharacterCount(
+                voiceTitle.length,
+                MAX_VOICE_TITLE_LENGTH,
+              )}
+            </Text>
+          </View>
+
+          <View className="flex-row gap-3 mt-4">
+            <Pressable
+              disabled={isPublishing}
+              onPress={() => {
+                void playPreview();
+              }}
+              className="flex-1 rounded-full border border-white/15 py-3 items-center"
+              style={{ opacity: isPublishing ? 0.5 : 1 }}
+            >
+              <Text className="text-white font-semibold">
+                {t.record.playPreview}
+              </Text>
+            </Pressable>
+            <Pressable
+              disabled={isPublishing}
+              onPress={() => {
+                void handleRecordAgain();
+              }}
+              className="flex-1 rounded-full border border-white/15 py-3 items-center"
+              style={{ opacity: isPublishing ? 0.5 : 1 }}
+            >
+              <Text className="text-white font-semibold">
+                {t.record.recordAgain}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            disabled={!canPublish}
+            onPress={() => {
+              void publishRecording();
+            }}
+            className="rounded-full py-4 items-center mt-3"
+            style={{
+              opacity: canPublish ? 1 : 0.45,
+              backgroundColor: "#FFFFFF",
+            }}
+          >
+            <Text className="text-black font-semibold">
+              {isPublishing ? t.record.publishing : t.record.publish}
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* FEEDBACK OVERLAY */}
       {justPosted && (
