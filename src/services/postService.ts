@@ -250,3 +250,12 @@ export async function incrementReaction(
 
   return true;
 }
+
+export async function deletePost(postId: string): Promise<void> {
+  // Cloudinary asset cleanup needs a secure backend job; never ship secrets here.
+  const { error } = await supabase.from("posts").delete().eq("id", postId);
+
+  if (error) {
+    throw error;
+  }
+}

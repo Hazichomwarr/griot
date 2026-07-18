@@ -57,6 +57,7 @@ type Store = {
 
   myPostIds: string[];
   addMyPostId: (id: string) => void;
+  removePost: (postId: string) => Promise<void>;
 
   stopAllAudioFlag: number;
   triggerStopAllAudio: () => void;
@@ -209,4 +210,26 @@ export const useRecordingStore = create<Store>((set, get) => ({
         ? state.myPostIds
         : [...state.myPostIds, id],
     })),
+
+  removePost: async (postId) => {
+    const nextSaved = get().saved.filter((id) => id !== postId);
+
+    set((state) => ({
+      posts: state.posts.filter((post) => post.id !== postId),
+      myPostIds: state.myPostIds.filter((id) => id !== postId),
+      saved: state.saved.filter((id) => id !== postId),
+      viewedPostIds: state.viewedPostIds.filter((id) => id !== postId),
+      reactedPostIds: state.reactedPostIds.filter((id) => id !== postId),
+      activeId: state.activeId === postId ? null : state.activeId,
+    }));
+
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.savedPostIds,
+        JSON.stringify(nextSaved),
+      );
+    } catch (error) {
+      console.log("persist saved after delete error:", error);
+    }
+  },
 }));

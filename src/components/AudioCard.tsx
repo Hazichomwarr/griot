@@ -10,6 +10,7 @@ import {
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   ImageBackground,
   Pressable,
@@ -30,6 +31,8 @@ type Props = {
   nextItem?: AudioPost;
   sharedNextSoundRef: React.MutableRefObject<Audio.Sound | null>;
   showCategoryHeader?: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
 };
 
 export default function AudioCard({
@@ -37,6 +40,8 @@ export default function AudioCard({
   nextItem,
   sharedNextSoundRef,
   showCategoryHeader = true,
+  onDelete,
+  deleting = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
@@ -458,6 +463,31 @@ export default function AudioCard({
                     {isSaved ? "▰" : "▱"}
                   </Text>
                 </Pressable>
+                {onDelete && (
+                  <Pressable
+                    disabled={deleting}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onDelete();
+                    }}
+                    className="rounded-full border border-white/40 items-center justify-center"
+                    style={{
+                      width: isCompact ? 42 : 48,
+                      height: isCompact ? 42 : 48,
+                      marginLeft: isCompact ? 10 : 14,
+                      opacity: deleting ? 0.45 : 1,
+                    }}
+                    accessibilityLabel={t.myVoices.deleteVoice}
+                  >
+                    {deleting ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Text className="text-lg" style={{ color: "#FFFFFF" }}>
+                        🗑
+                      </Text>
+                    )}
+                  </Pressable>
+                )}
               </View>
 
               <View

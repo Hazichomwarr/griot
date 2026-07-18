@@ -29,6 +29,8 @@ export const strings = {
       shareVoice: "Share your voice",
     },
     actions: {
+      cancel: "Cancel",
+      delete: "Delete",
       save: "Save",
       saved: "Saved",
     },
@@ -39,6 +41,11 @@ export const strings = {
     myVoices: {
       emptyTitle: "No voices published yet",
       emptyBody: "The voices you publish will live here.",
+      deleteVoice: "Delete voice",
+      deleteVoiceTitle: "Delete voice?",
+      deleteVoiceMessage: "This voice will be permanently removed.",
+      deleteVoiceSuccess: "Voice deleted",
+      deleteVoiceError: "Could not delete this voice. Try again.",
     },
     record: {
       title: "Share your voice",
@@ -87,6 +94,8 @@ export const strings = {
       shareVoice: "Partage ta voix",
     },
     actions: {
+      cancel: "Annuler",
+      delete: "Supprimer",
       save: "Sauvegarder",
       saved: "Sauvegardee",
     },
@@ -97,6 +106,11 @@ export const strings = {
     myVoices: {
       emptyTitle: "Aucune voix publiee",
       emptyBody: "Les voix que tu publies vivront ici.",
+      deleteVoice: "Supprimer la voix",
+      deleteVoiceTitle: "Supprimer la voix ?",
+      deleteVoiceMessage: "Cette voix sera supprimee definitivement.",
+      deleteVoiceSuccess: "Voix supprimee",
+      deleteVoiceError: "Impossible de supprimer cette voix. Reessaie.",
     },
     record: {
       title: "Partage ta voix",
