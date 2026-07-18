@@ -18,6 +18,8 @@ export default function Saved() {
 
   const posts = useRecordingStore((s) => s.posts);
   const savedIds = useRecordingStore((s) => s.saved);
+  const savedHydrated = useRecordingStore((s) => s.savedHydrated);
+  const savedHydrating = useRecordingStore((s) => s.savedHydrating);
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
@@ -49,6 +51,26 @@ export default function Saved() {
       setActive(desiredId);
     }
   }, [savedPosts, activeId, activePost, setActive]);
+
+  if (
+    !savedHydrated ||
+    savedHydrating ||
+    (savedIds.length > 0 && posts.length === 0)
+  ) {
+    return (
+      <View className="flex-1 items-center justify-center bg-black">
+        <Text className="text-white/70 text-base">{t.saved.loading}</Text>
+        <FloatingMic
+          activeRoute="saved"
+          accentColor={activeTheme.primary}
+          onPressFeed={() => router.push("/")}
+          onPressMyVoices={() => router.push("/my-voices")}
+          onPressRecord={() => router.push("/record")}
+          onPressSaved={() => router.push("/saved")}
+        />
+      </View>
+    );
+  }
 
   if (savedPosts.length === 0) {
     return (

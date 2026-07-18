@@ -1,4 +1,6 @@
 // src/store/useRecordingStore.ts
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { STORAGE_KEYS } from "@/src/lib/storageKeys";
 import { create } from "zustand";
 
 console.log("STORE INIT");
@@ -41,7 +43,10 @@ type Store = {
   setPosts: (posts: AudioPost[]) => void;
 
   saved: string[];
-  toggleSave: (id: string) => void;
+  savedHydrated: boolean;
+  savedHydrating: boolean;
+  hydrateSaved: () => Promise<void>;
+  toggleSave: (id: string) => Promise<void>;
   isSaved: (id: string) => boolean;
 
   viewedPostIds: string[];
@@ -70,6 +75,8 @@ export const useRecordingStore = create<Store>((set, get) => ({
   stopAllAudioFlag: 0,
 
   saved: [],
+  savedHydrated: false,
+  savedHydrating: false,
   viewedPostIds: [],
   reactedPostIds: [],
   myPostIds: [],
@@ -130,12 +137,67 @@ export const useRecordingStore = create<Store>((set, get) => ({
     return get().reactedPostIds.includes(id);
   },
 
-  toggleSave: (id) =>
-    set((state) => ({
-      saved: state.saved.includes(id)
-        ? state.saved.filter((s) => s !== id)
-        : [...state.saved, id],
-    })),
+  hydrateSaved: async () => {
+    if (get().savedHydrated || get().savedHydrating) return;
+
+    set({ savedHydrating: true });
+
+    try {
+      const raw = await AsyncStorage.getItem(STORAGE_KEYS.savedPostIds);
+
+      if (!raw) {
+        set({
+          saved: [],
+          savedHydrated: true,
+          savedHydrating: false,
+        });
+        return;
+      }
+
+      const parsed: unknown = JSON.parse(raw);
+      const ids = Array.isArray(parsed)
+        ? [
+            ...new Set(
+              parsed.filter(
+                (value): value is string => typeof value === "string",
+              ),
+            ),
+          ]
+        : [];
+
+      set({
+        saved: ids,
+        savedHydrated: true,
+        savedHydrating: false,
+      });
+    } catch (error) {
+      console.log("hydrateSaved error:", error);
+
+      set({
+        saved: [],
+        savedHydrated: true,
+        savedHydrating: false,
+      });
+    }
+  },
+
+  toggleSave: async (id) => {
+    const current = get().saved;
+    const nextSaved = current.includes(id)
+      ? current.filter((savedId) => savedId !== id)
+      : [...current, id];
+
+    set({ saved: nextSaved });
+
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.savedPostIds,
+        JSON.stringify(nextSaved),
+      );
+    } catch (error) {
+      console.log("persist saved error:", error);
+    }
+  },
 
   isSaved: (id) => {
     return get().saved.includes(id);

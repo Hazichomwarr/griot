@@ -48,6 +48,7 @@ export const strings = {
       replace: "Replace",
     },
     saved: {
+      loading: "Loading saved voices...",
       emptyTitle: "No saved voices",
       emptyBody: "The voices you want to find again will live here.",
     },
@@ -105,6 +106,7 @@ export const strings = {
       replace: "Remplacer",
     },
     saved: {
+      loading: "Chargement des voix sauvegardees...",
       emptyTitle: "Aucune voix sauvegardee",
       emptyBody: "Les voix que tu veux retrouver vivront ici.",
     },
