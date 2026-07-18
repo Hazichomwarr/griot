@@ -8,6 +8,7 @@ import { getPosts } from "@/src/services/postService";
 import type { AudioPost, Category } from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
 import { Audio } from "expo-av";
+import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, FlatList, Pressable, Text, View } from "react-native";
@@ -16,6 +17,49 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 type CategoryFilter = "all" | Category;
+
+type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+async function getCurrentFeedLocation(): Promise<Coordinates | null> {
+  try {
+    const permission = await Location.getForegroundPermissionsAsync();
+    if (!permission.granted) {
+      console.log("nearby sorting skipped: location unavailable");
+      return null;
+    }
+
+    const lastKnownLocation = await Location.getLastKnownPositionAsync({
+      maxAge: 60_000,
+    });
+
+    if (lastKnownLocation) {
+      return {
+        latitude: lastKnownLocation.coords.latitude,
+        longitude: lastKnownLocation.coords.longitude,
+      };
+    }
+
+    const currentLocation = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    }).catch((err) => {
+      console.log("nearby sorting location capture failed:", err);
+      return null;
+    });
+
+    if (!currentLocation) return null;
+
+    return {
+      latitude: currentLocation.coords.latitude,
+      longitude: currentLocation.coords.longitude,
+    };
+  } catch (err) {
+    console.log("nearby sorting skipped:", err);
+    return null;
+  }
+}
 
 export default function App() {
   const insets = useSafeAreaInsets();
@@ -61,7 +105,9 @@ export default function App() {
 
   useEffect(() => {
     async function loadPosts() {
-      const posts = await getPosts();
+      const userLocation = await getCurrentFeedLocation();
+      const posts = await getPosts({ userLocation });
+
       console.log("Loaded UI posts:", posts);
       setPosts(posts);
     }

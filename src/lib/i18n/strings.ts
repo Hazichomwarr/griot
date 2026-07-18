@@ -8,6 +8,7 @@ export const strings = {
         "The degue near Creamiere does not taste right anymore...",
       neighborhoodFallback: "nearby",
       now: "now",
+      away: "away",
       townFallback: "around you",
     },
     categories: {
@@ -60,6 +61,7 @@ export const strings = {
         "La degue a cote de la Creamiere n'est plus bonne...",
       neighborhoodFallback: "tout pres",
       now: "maintenant",
+      away: "d'ici",
       townFallback: "autour de toi",
     },
     categories: {

@@ -320,7 +320,9 @@ export default function AudioCard({
             >
               {item.username} • {neighborhood} •{" "}
               <Text style={{ color: theme.light }}>{t.audioCard.now}</Text>
-              {item.distance ? ` • ${item.distance}` : ""}
+              {item.distance
+                ? ` • 📍 ${item.distance} ${t.audioCard.away}`
+                : ""}
             </Text>
 
             {/* PLAYER */}

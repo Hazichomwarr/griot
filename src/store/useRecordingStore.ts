@@ -25,8 +25,11 @@ export type AudioPost = {
   town: string;
   country?: string;
   category: Category;
+  latitude?: number | null;
+  longitude?: number | null;
 
-  distance?: string; // "2 blocks away"
+  distance?: string; // computed when feed posts are loaded
+  distanceKm?: number;
   timestamp?: string; // Tonight
   transcript?: string;
 };
@@ -68,27 +71,6 @@ export const useRecordingStore = create<Store>((set, get) => ({
 
   setActive: (id) => set({ activeId: id }),
 
-  // addRecording: (uri, category) => {
-  //   const newItem: AudioPost = {
-  //     id: Date.now().toString(),
-  //     uri,
-  //     username: "Hamza", // temp
-  //     avatar: "https://i.pravatar.cc/150?img=1",
-  //     neighborhood: "Karpala",
-  //     town: "Ouagadougou",
-  //     views: 0,
-  //     category,
-  //     reactions: {
-  //       "😂": 0,
-  //       "🚨": 0,
-  //       "👍": 0,
-  //     },
-  //   };
-  //   set((state) => ({
-  //     recordings: [newItem, ...state.recordings],
-  //   }));
-  //   return newItem;
-  // },
   setPosts: (posts) => set({ posts }),
   deleteRecording: (id) =>
     set((state) => ({

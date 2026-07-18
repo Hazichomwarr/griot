@@ -1,10 +1,16 @@
 // src/services/postService.ts
+import { calculateDistanceKm } from "@/src/lib/distance";
 import { supabase } from "@/src/lib/supabase";
 import type {
   AudioPost,
   Category,
   Reactions,
 } from "@/src/store/useRecordingStore";
+
+type FeedLocation = {
+  latitude: number;
+  longitude: number;
+};
 
 type DbPost = {
   id: string;
@@ -24,8 +30,68 @@ type DbPost = {
   created_at?: string | null;
 };
 
+const APPROXIMATE_DISTANCE_TIE_KM = 0.05;
+
 function normalizeCategory(category?: string | null): Category {
   return category === "around_you" ? "around_you" : "moments";
+}
+
+function hasPostCoordinates(
+  post: AudioPost,
+): post is AudioPost & { latitude: number; longitude: number } {
+  return typeof post.latitude === "number" && typeof post.longitude === "number";
+}
+
+function formatDistance(distanceKm: number) {
+  if (distanceKm < 1) {
+    return `${Math.max(1, Math.round(distanceKm * 1000))} m`;
+  }
+
+  return `${distanceKm.toFixed(1)} km`;
+}
+
+function sortPostsByDistance(posts: AudioPost[], userLocation?: FeedLocation) {
+  if (!userLocation) return posts;
+
+  return posts
+    .map((post, index) => {
+      if (!hasPostCoordinates(post)) {
+        return { post, index, distanceKm: null };
+      }
+
+      const distanceKm = calculateDistanceKm(
+        userLocation.latitude,
+        userLocation.longitude,
+        post.latitude,
+        post.longitude,
+      );
+
+      return {
+        index,
+        distanceKm,
+        post: {
+          ...post,
+          distance: formatDistance(distanceKm),
+          distanceKm,
+        },
+      };
+    })
+    .sort((a, b) => {
+      if (a.distanceKm === null && b.distanceKm === null) {
+        return a.index - b.index;
+      }
+
+      if (a.distanceKm === null) return 1;
+      if (b.distanceKm === null) return -1;
+
+      const distanceDelta = a.distanceKm - b.distanceKm;
+      if (Math.abs(distanceDelta) < APPROXIMATE_DISTANCE_TIE_KM) {
+        return a.index - b.index;
+      }
+
+      return distanceDelta;
+    })
+    .map(({ post }) => post);
 }
 
 function mapDbPostToAudioPost(post: DbPost): AudioPost {
@@ -45,12 +111,18 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
     town: post.town ?? "",
     country: post.country ?? "",
     category: normalizeCategory(post.category),
+    latitude: post.latitude ?? null,
+    longitude: post.longitude ?? null,
+    distance: undefined,
+    distanceKm: undefined,
     transcript: post.transcript ?? "",
     timestamp: post.created_at ?? "",
   };
 }
 
-export async function getPosts(): Promise<AudioPost[]> {
+export async function getPosts(options?: {
+  userLocation?: FeedLocation | null;
+}): Promise<AudioPost[]> {
   const { data, error } = await supabase
     .from("posts")
     .select("*")
@@ -62,7 +134,9 @@ export async function getPosts(): Promise<AudioPost[]> {
     return [];
   }
 
-  return ((data ?? []) as DbPost[]).map(mapDbPostToAudioPost);
+  const posts = ((data ?? []) as DbPost[]).map(mapDbPostToAudioPost);
+
+  return sortPostsByDistance(posts, options?.userLocation ?? undefined);
 }
 
 export async function createPost(post: {
