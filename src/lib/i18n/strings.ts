@@ -11,6 +11,7 @@ export const strings = {
       away: "away",
       listens: (count: number) =>
         count === 1 ? "1 listen" : `${count} listens`,
+      reactWith: (emoji: string) => `React with ${emoji}`,
       townFallback: "around you",
     },
     categories: {
@@ -66,6 +67,7 @@ export const strings = {
       away: "d'ici",
       listens: (count: number) =>
         count === 1 ? "1 ecoute" : `${count} ecoutes`,
+      reactWith: (emoji: string) => `Reagir avec ${emoji}`,
       townFallback: "autour de toi",
     },
     categories: {

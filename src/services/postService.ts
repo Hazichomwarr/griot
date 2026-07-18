@@ -36,6 +36,14 @@ function normalizeCategory(category?: string | null): Category {
   return category === "around_you" ? "around_you" : "moments";
 }
 
+function normalizeReactions(reactions?: Partial<Reactions> | null): Reactions {
+  return {
+    "😂": reactions?.["😂"] ?? 0,
+    "🚨": reactions?.["🚨"] ?? 0,
+    "👍": reactions?.["👍"] ?? 0,
+  };
+}
+
 function hasPostCoordinates(
   post: AudioPost,
 ): post is AudioPost & { latitude: number; longitude: number } {
@@ -100,11 +108,7 @@ function mapDbPostToAudioPost(post: DbPost): AudioPost {
     uri: post.audio_url ?? "",
     duration: post.duration ?? 0,
     views: post.views ?? 0,
-    reactions: post.reactions ?? {
-      "😂": 0,
-      "🚨": 0,
-      "👍": 0,
-    },
+    reactions: normalizeReactions(post.reactions),
     username: post.username ?? "Anonymous",
     avatar: post.avatar ?? "",
     neighborhood: post.neighborhood ?? "",
@@ -198,6 +202,36 @@ export async function incrementPostViews(postId: string): Promise<boolean> {
       JSON.stringify(
         {
           postId,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        },
+        null,
+        2,
+      ),
+    );
+    return false;
+  }
+
+  return true;
+}
+
+export async function incrementReaction(
+  postId: string,
+  emoji: keyof Reactions,
+): Promise<boolean> {
+  const { error } = await supabase.rpc("increment_post_reaction", {
+    post_id: postId,
+    reaction_key: emoji,
+  });
+
+  if (error) {
+    console.log(
+      "incrementReaction failed:",
+      JSON.stringify(
+        {
+          postId,
+          emoji,
           code: error.code,
           message: error.message,
           details: error.details,

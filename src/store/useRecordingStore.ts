@@ -47,6 +47,9 @@ type Store = {
   viewedPostIds: string[];
   hasViewedPost: (id: string) => boolean;
 
+  reactedPostIds: string[];
+  hasReactedToPost: (id: string) => boolean;
+
   myPostIds: string[];
   addMyPostId: (id: string) => void;
 
@@ -68,6 +71,7 @@ export const useRecordingStore = create<Store>((set, get) => ({
 
   saved: [],
   viewedPostIds: [],
+  reactedPostIds: [],
   myPostIds: [],
 
   triggerStopAllAudio: () =>
@@ -101,16 +105,30 @@ export const useRecordingStore = create<Store>((set, get) => ({
   },
 
   addReaction: (id, emoji) =>
-    set((state) => ({
-      posts: state.posts.map((r) =>
-        r.id === id
-          ? {
-              ...r,
-              reactions: { ...r.reactions, [emoji]: r.reactions[emoji] + 1 },
-            }
-          : r,
-      ),
-    })),
+    set((state) => {
+      if (state.reactedPostIds.includes(id)) {
+        return state;
+      }
+
+      return {
+        reactedPostIds: [...state.reactedPostIds, id],
+        posts: state.posts.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                reactions: {
+                  ...r.reactions,
+                  [emoji]: (r.reactions[emoji] ?? 0) + 1,
+                },
+              }
+            : r,
+        ),
+      };
+    }),
+
+  hasReactedToPost: (id) => {
+    return get().reactedPostIds.includes(id);
+  },
 
   toggleSave: (id) =>
     set((state) => ({

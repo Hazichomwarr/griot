@@ -3,7 +3,10 @@
 import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
-import { incrementPostViews } from "@/src/services/postService";
+import {
+  incrementPostViews,
+  incrementReaction,
+} from "@/src/services/postService";
 import { Audio } from "expo-av";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -14,11 +17,13 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { AudioPost, useRecordingStore } from "../store/useRecordingStore";
+import type { AudioPost, Reactions } from "../store/useRecordingStore";
+import { useRecordingStore } from "../store/useRecordingStore";
 
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const waveformBars = [8, 14, 22, 13, 28, 18, 10, 24, 32, 15, 20, 26];
+const reactionEmojis: (keyof Reactions)[] = ["😂", "🚨", "👍"];
 
 type Props = {
   item: AudioPost;
@@ -63,6 +68,8 @@ export default function AudioCard({
   const isSaved = useRecordingStore((s) => s.isSaved(item.id));
   const incrementViews = useRecordingStore((s) => s.incrementViews);
   const hasViewedPost = useRecordingStore((s) => s.hasViewedPost);
+  const addReaction = useRecordingStore((s) => s.addReaction);
+  const hasReacted = useRecordingStore((s) => s.hasReactedToPost(item.id));
 
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
@@ -101,6 +108,22 @@ export default function AudioCard({
       })
       .catch((err) => {
         console.log("View persistence skipped:", err);
+      });
+  }
+
+  function handleReaction(emoji: keyof Reactions) {
+    if (useRecordingStore.getState().hasReactedToPost(item.id)) return;
+
+    addReaction(item.id, emoji);
+
+    incrementReaction(item.id, emoji)
+      .then((succeeded) => {
+        if (!succeeded) {
+          console.log("Reaction persisted locally only:", item.id, emoji);
+        }
+      })
+      .catch((err) => {
+        console.log("Reaction persistence skipped:", err);
       });
   }
 
@@ -349,6 +372,45 @@ export default function AudioCard({
                 ? ` • 📍 ${item.distance} ${t.audioCard.away}`
                 : ""}
             </Text>
+
+            <View
+              className="flex-row items-center justify-center"
+              style={{ marginTop: isCompact ? 12 : 16 }}
+            >
+              {reactionEmojis.map((emoji) => (
+                <Pressable
+                  key={emoji}
+                  disabled={hasReacted}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    handleReaction(emoji);
+                  }}
+                  className="rounded-full border flex-row items-center"
+                  style={{
+                    marginHorizontal: 4,
+                    paddingHorizontal: isCompact ? 10 : 12,
+                    paddingVertical: isCompact ? 5 : 6,
+                    opacity: hasReacted ? 0.45 : 1,
+                    borderColor: hasReacted
+                      ? "rgba(255,255,255,0.12)"
+                      : "rgba(255,255,255,0.15)",
+                    backgroundColor: hasReacted
+                      ? "rgba(120,120,120,0.18)"
+                      : "rgba(0,0,0,0.25)",
+                  }}
+                  accessibilityLabel={t.audioCard.reactWith(emoji)}
+                >
+                  <Text
+                    style={{
+                      color: hasReacted ? "#A3A3A3" : "#FFFFFF",
+                      fontSize: isCompact ? 13 : 14,
+                    }}
+                  >
+                    {emoji} {item.reactions[emoji] ?? 0}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
 
             {/* PLAYER */}
             <View
