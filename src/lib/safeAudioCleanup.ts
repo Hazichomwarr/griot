@@ -1,17 +1,14 @@
 // lib/safeAudioCleanup.ts
-import { Audio } from "expo-av";
+import type { AudioPlayer } from "expo-audio";
 
-export async function safeAudioCleanup(sound: Audio.Sound | null) {
-  if (!sound) return;
+/** Stops a hook-managed player without releasing it before its component unmounts. */
+export async function safeAudioCleanup(player: AudioPlayer | null) {
+  if (!player) return;
 
   try {
-    const status = await sound.getStatusAsync();
-
-    if (status.isLoaded) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-    }
+    player.pause();
+    await player.seekTo(0);
   } catch (e) {
-    console.log("Sound cleanup error:", e);
+    console.log("Audio player cleanup error:", e);
   }
 }

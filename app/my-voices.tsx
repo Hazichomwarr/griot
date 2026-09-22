@@ -5,9 +5,8 @@ import { getStrings } from "@/src/lib/i18n/strings";
 import { deletePost } from "@/src/services/postService";
 import type { AudioPost } from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
-import { Audio } from "expo-av";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Dimensions, FlatList, Platform, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -34,7 +33,6 @@ export default function MyVoices() {
   const activePost = myPosts.find((post) => post.id === activeId);
   const activeTheme = getCategoryTheme(activePost?.category);
 
-  const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item?: AudioPost }[] }) => {
       const item = viewableItems[0]?.item;
@@ -167,7 +165,6 @@ export default function MyVoices() {
           <AudioCard
             item={item}
             nextItem={myPosts[index + 1]}
-            sharedNextSoundRef={sharedNextSoundRef}
             onDelete={() => confirmDelete(item.id)}
             deleting={deletingPostId === item.id}
           />

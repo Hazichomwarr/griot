@@ -198,8 +198,6 @@ export async function createPost(post: {
     longitude: post.longitude ?? null,
   };
 
-  console.log("createPost insert payload:", JSON.stringify(dbPost, null, 2));
-
   const { data, error } = await supabase
     .from("posts")
     .insert(dbPost)
@@ -211,7 +209,6 @@ export async function createPost(post: {
     return null;
   }
 
-  console.log("createPost insert succeeded:", JSON.stringify(data, null, 2));
   return mapDbPostToAudioPost(data);
 }
 

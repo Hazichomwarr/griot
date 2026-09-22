@@ -5,7 +5,13 @@ import {
   MAX_VOICE_TITLE_LENGTH,
 } from "@/src/lib/postPresentation";
 import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
-import { Audio } from "expo-av";
+import {
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  useAudioPlayer,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from "expo-audio";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -21,8 +27,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createPost, getPosts } from "@/src/services/postService";
 import uploadAudio from "@/src/services/uploadService";
+import {
+  configurePlaybackAudioMode,
+  configureRecordingAudioMode,
+} from "@/src/lib/audioSession";
 
 type Mode = "idle" | "recording";
+type RecordingOperation = "idle" | "starting" | "recording" | "stopping";
 
 type CapturedLocation = {
   latitude: number | null;
@@ -97,13 +108,10 @@ async function captureLocation(): Promise<CapturedLocation> {
       return { latitude: null, longitude: null };
     }
 
-    const capturedLocation = {
+    return {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
     };
-
-    console.log("captured location:", JSON.stringify(capturedLocation, null, 2));
-    return capturedLocation;
   } catch (err) {
     console.log("location capture failed:", err);
     return { latitude: null, longitude: null };
@@ -132,14 +140,12 @@ function getLocalProfilePlace(): ResolvedPlace {
 async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> {
   if (location.latitude === null || location.longitude === null) {
     console.log("reverse geocoding skipped: missing coordinates");
-    console.log("resolved place:", JSON.stringify(FALLBACK_PLACE, null, 2));
     return FALLBACK_PLACE;
   }
 
   if (Platform.OS === "web") {
     const place = getLocalProfilePlace();
     console.log("reverse geocoding skipped on web");
-    console.log("resolved place:", JSON.stringify(place, null, 2));
     return place;
   }
 
@@ -148,8 +154,6 @@ async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> 
       latitude: location.latitude,
       longitude: location.longitude,
     });
-
-    console.log("reverse geocode results:", JSON.stringify(places, null, 2));
 
     const [place] = places;
 
@@ -170,11 +174,9 @@ async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> 
     };
 
     console.log("reverse geocoding resolved on native");
-    console.log("resolved place:", JSON.stringify(resolvedPlace, null, 2));
     return resolvedPlace;
   } catch (err) {
     console.log("reverse geocoding failed:", err);
-    console.log("resolved place:", JSON.stringify(FALLBACK_PLACE, null, 2));
     return FALLBACK_PLACE;
   }
 }
@@ -195,15 +197,19 @@ export default function Record() {
   const addMyPostId = useRecordingStore((s) => s.addMyPostId);
 
   const [mode, setMode] = useState<Mode>("idle");
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const previewSoundRef = useRef<Audio.Sound | null>(null);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder, 200);
+  const recordingOperationRef = useRef<RecordingOperation>("idle");
+  const recordingReleaseRequestedRef = useRef(false);
+  const startRecordingPromiseRef = useRef<Promise<void> | null>(null);
+  const recorderStateRef = useRef(recorderState);
+  const isMountedRef = useRef(true);
+  const previewOperationRef = useRef(false);
 
   const [category, setCategory] = useState<Category>("moments");
 
-  const [duration, setDuration] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [pendingUri, setPendingUri] = useState<string | null>(null);
+  const previewPlayer = useAudioPlayer(pendingUri);
   const [pendingDuration, setPendingDuration] = useState(0);
   const [voiceTitle, setVoiceTitle] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -216,6 +222,19 @@ export default function Record() {
   const canPublish =
     Boolean(pendingUri) && !titleError && !isPublishing && mode !== "recording";
 
+  useEffect(() => {
+    recorderStateRef.current = recorderState;
+  }, [recorderState]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      recordingOperationRef.current = "idle";
+      recordingReleaseRequestedRef.current = false;
+      previewOperationRef.current = false;
+    };
+  }, []);
+
   function goBackToFeed() {
     if (router.canGoBack()) {
       router.back();
@@ -226,30 +245,22 @@ export default function Record() {
   }
 
   async function discardActiveRecording() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (recordingOperationRef.current === "starting") {
+      recordingReleaseRequestedRef.current = true;
+      await startRecordingPromiseRef.current;
+      return;
     }
 
-    const activeRecording = recordingRef.current;
-    if (activeRecording) {
-      try {
-        await activeRecording.stopAndUnloadAsync();
-      } catch (err) {
-        console.log("discard active recording error:", err);
-      }
-    }
-
-    recordingRef.current = null;
-    setRecording(null);
-    setMode("idle");
-    setDuration(0);
+    await stopRecording(false);
   }
 
   async function discardDraft() {
-    if (previewSoundRef.current) {
-      await previewSoundRef.current.unloadAsync().catch(() => {});
-      previewSoundRef.current = null;
+    try {
+      await configurePlaybackAudioMode();
+      previewPlayer.pause();
+      await previewPlayer.seekTo(0);
+    } catch (err) {
+      console.log("discard preview cleanup error:", err);
     }
 
     setPendingUri(null);
@@ -285,7 +296,7 @@ export default function Record() {
   }
 
   function handleBack() {
-    if (mode === "recording") {
+    if (recordingOperationRef.current !== "idle") {
       confirmDiscard(() => {
         void discardActiveRecording().then(goBackToFeed);
       });
@@ -304,59 +315,99 @@ export default function Record() {
 
   // 🎙 START RECORDING
   async function startRecording() {
+    if (recordingOperationRef.current !== "idle") return;
+
+    recordingOperationRef.current = "starting";
+    recordingReleaseRequestedRef.current = false;
+
+    const startPromise = (async () => {
     try {
-      const permission = await Audio.requestPermissionsAsync();
-      if (!permission.granted) return;
+      const permission = await requestRecordingPermissionsAsync();
+      if (!permission.granted || !isMountedRef.current) {
+        recordingOperationRef.current = "idle";
+        recordingReleaseRequestedRef.current = false;
+        await configurePlaybackAudioMode();
+        if (isMountedRef.current) setMode("idle");
+        return;
+      }
 
       // stop all audio before recording
       triggerStopAllAudio();
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      await configureRecordingAudioMode();
+      if (!isMountedRef.current) {
+        recordingOperationRef.current = "idle";
+        recordingReleaseRequestedRef.current = false;
+        await configurePlaybackAudioMode();
+        return;
+      }
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
+      await recorder.prepareToRecordAsync();
+      if (!isMountedRef.current) {
+        recordingOperationRef.current = "idle";
+        recordingReleaseRequestedRef.current = false;
+        await configurePlaybackAudioMode();
+        return;
+      }
 
-      setRecording(recording);
-      recordingRef.current = recording;
+      recorder.record();
+      recordingOperationRef.current = "recording";
       setMode("recording");
 
-      // timer when recording starts
-      intervalRef.current = setInterval(async () => {
-        const status = await recording.getStatusAsync();
-        if (status.isRecording) {
-          setDuration(status.durationMillis || 0);
-        }
-      }, 200);
+      if (recordingReleaseRequestedRef.current) {
+        await stopRecording(false);
+      }
     } catch (err) {
-      console.error("Failed to start recording", err);
+      console.log("Failed to start recording:", err);
+      recordingOperationRef.current = "idle";
+      recordingReleaseRequestedRef.current = false;
+      await configurePlaybackAudioMode().catch((modeError) => {
+        console.log("Failed to restore playback audio mode:", modeError);
+      });
+      if (isMountedRef.current) setMode("idle");
+    }
+    })();
+
+    startRecordingPromiseRef.current = startPromise;
+    await startPromise;
+    if (startRecordingPromiseRef.current === startPromise) {
+      startRecordingPromiseRef.current = null;
     }
   }
 
   // ⏹ STOP + DRAFT
-  async function stopRecording() {
-    if (!recording) return;
+  async function stopRecording(createDraft = true) {
+    if (recordingOperationRef.current !== "recording") return;
 
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    recordingOperationRef.current = "stopping";
+    let uri: string | null = null;
+    let durationMillis = recorderStateRef.current.durationMillis;
+
+    try {
+      await recorder.stop();
+
+      if (isMountedRef.current) {
+        const stoppedState = recorder.getStatus();
+        uri = stoppedState.url;
+        durationMillis = Math.max(durationMillis, stoppedState.durationMillis);
+      }
+    } catch (err) {
+      console.log("stop recording error:", err);
+    } finally {
+      recordingOperationRef.current = "idle";
+      recordingReleaseRequestedRef.current = false;
+      await configurePlaybackAudioMode().catch((modeError) => {
+        console.log("Failed to restore playback audio mode:", modeError);
+      });
+
+      if (!isMountedRef.current) return;
+
+      setMode("idle");
+      if (createDraft && uri) {
+        setPendingUri(uri);
+        setPendingDuration(durationMillis);
+      }
     }
-
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-
-    setRecording(null);
-    recordingRef.current = null;
-    setMode("idle");
-
-    if (uri) {
-      setPendingUri(uri);
-      setPendingDuration(duration);
-    }
-    setDuration(0);
   }
 
   async function publishRecording() {
@@ -374,8 +425,6 @@ export default function Record() {
         setPublishError(t.record.publishError);
         return;
       }
-      console.log("Public Audio URL:", audioUrl);
-
       const location = await captureLocation();
       const place = await resolvePlace(location);
 
@@ -441,48 +490,36 @@ export default function Record() {
     setJustPosted(false);
 
     // Restart immediately
-    if (recording) return; // prevent double recording
-    startRecording();
+    if (recordingOperationRef.current !== "idle") return;
+    void startRecording();
   }
 
   async function handleRecordAgain() {
     await discardDraft();
     setJustPosted(false);
 
-    if (recording) return;
+    if (recordingOperationRef.current !== "idle") return;
     void startRecording();
   }
 
   async function playPreview() {
-    if (!pendingUri) return;
+    if (!pendingUri || previewOperationRef.current) return;
+
+    previewOperationRef.current = true;
 
     try {
-      if (previewSoundRef.current) {
-        await previewSoundRef.current.replayAsync();
-        return;
-      }
+      await configurePlaybackAudioMode();
+      if (!isMountedRef.current) return;
 
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: pendingUri },
-        { shouldPlay: true },
-      );
-      previewSoundRef.current = sound;
+      previewPlayer.pause();
+      await previewPlayer.seekTo(0);
+      previewPlayer.play();
     } catch (err) {
       console.log("play preview error:", err);
+    } finally {
+      previewOperationRef.current = false;
     }
   }
-
-  //cleanup
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      if (previewSoundRef.current) {
-        previewSoundRef.current.unloadAsync().catch(() => {});
-      }
-    };
-  }, []);
 
   const format = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -558,11 +595,15 @@ export default function Record() {
           }}
           onPressIn={() => {
             if (mode === "idle" && !pendingUri && !isPublishing) {
-              startRecording();
+              void startRecording();
             }
           }}
           onPressOut={() => {
-            if (mode === "recording") stopRecording();
+            if (recordingOperationRef.current === "starting") {
+              recordingReleaseRequestedRef.current = true;
+            } else if (recordingOperationRef.current === "recording") {
+              void stopRecording();
+            }
           }}
           className={`w-36 h-36 rounded-full items-center justify-center border ${
             mode === "recording"
@@ -589,7 +630,9 @@ export default function Record() {
         </Text>
 
         {mode === "recording" && (
-          <Text className="text-white text-xl mt-4">{format(duration)}</Text>
+          <Text className="text-white text-xl mt-4">
+            {format(recorderState.durationMillis)}
+          </Text>
         )}
       </View>
 

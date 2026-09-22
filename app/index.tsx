@@ -9,7 +9,6 @@ import { getPosts, reportPost } from "@/src/services/postService";
 import type { ReportReason } from "@/src/services/postService";
 import type { AudioPost, Category } from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
-import { Audio } from "expo-av";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -105,17 +104,13 @@ export default function App() {
   const [showToast, setShowToast] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const listRef = useRef<FlatList<AudioPost>>(null);
   const skipNextAutoScrollRef = useRef(false);
-
-  //console.log("recordings:", posts);
 
   const loadFeedPosts = useCallback(async () => {
     const userLocation = await getCurrentFeedLocation();
     const posts = await getPosts({ userLocation, throwOnError: true });
 
-    console.log("Loaded UI posts:", posts);
     setPosts(posts);
   }, [setPosts]);
 
@@ -184,13 +179,6 @@ export default function App() {
       t.report.reportSubmitted,
     ],
   );
-
-  useEffect(() => {
-    if (sharedNextSoundRef.current) {
-      sharedNextSoundRef.current.unloadAsync().catch(() => {});
-      sharedNextSoundRef.current = null;
-    }
-  }, [selectedFilter]);
 
   useEffect(() => {
     async function loadPosts() {
@@ -264,7 +252,6 @@ export default function App() {
             <AudioCard
               item={item}
               nextItem={filteredPosts[index + 1]}
-              sharedNextSoundRef={sharedNextSoundRef}
               showCategoryHeader={false}
               onReport={
                 myPostIds.includes(item.id)

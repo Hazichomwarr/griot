@@ -7,9 +7,8 @@ import { reportPost } from "@/src/services/postService";
 import type { ReportReason } from "@/src/services/postService";
 import type { AudioPost } from "@/src/store/useRecordingStore";
 import { useRecordingStore } from "@/src/store/useRecordingStore";
-import { Audio } from "expo-av";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Dimensions, FlatList, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -40,7 +39,6 @@ export default function Saved() {
   const activePost = savedPosts.find((post) => post.id === activeId);
   const activeTheme = getCategoryTheme(activePost?.category);
 
-  const sharedNextSoundRef = useRef<Audio.Sound | null>(null);
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: { item?: AudioPost }[] }) => {
       const item = viewableItems[0]?.item;
@@ -168,7 +166,6 @@ export default function Saved() {
           <AudioCard
             item={item}
             nextItem={savedPosts[index + 1]}
-            sharedNextSoundRef={sharedNextSoundRef}
             onReport={
               myPostIds.includes(item.id) ? undefined : () => openReport(item.id)
             }

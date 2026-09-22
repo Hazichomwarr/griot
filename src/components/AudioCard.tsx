@@ -2,14 +2,15 @@
 
 import { getCategoryTheme } from "@/src/lib/categoryTheme";
 import { getStrings } from "@/src/lib/i18n/strings";
+import { configurePlaybackAudioMode } from "@/src/lib/audioSession";
 import { getPostTitle } from "@/src/lib/postPresentation";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
 import {
   incrementPostViews,
   incrementReaction,
 } from "@/src/services/postService";
-import { Audio } from "expo-av";
-import React, { useEffect, useRef, useState } from "react";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import React, { useCallback, useEffect, useRef } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -30,7 +31,6 @@ const reactionEmojis: (keyof Reactions)[] = ["😂", "🚨", "👍"];
 type Props = {
   item: AudioPost;
   nextItem?: AudioPost;
-  sharedNextSoundRef: React.MutableRefObject<Audio.Sound | null>;
   showCategoryHeader?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
@@ -41,7 +41,6 @@ type Props = {
 export default function AudioCard({
   item,
   nextItem,
-  sharedNextSoundRef,
   showCategoryHeader = true,
   onDelete,
   deleting = false,
@@ -68,12 +67,6 @@ export default function AudioCard({
       : t.categories.momentsDescription;
 
   const stopAllAudioFlag = useRecordingStore((s) => s.stopAllAudioFlag);
-  useEffect(() => {
-    if (soundRef.current) {
-      safeAudioCleanup(soundRef.current);
-      soundRef.current = null;
-    }
-  }, [stopAllAudioFlag]);
 
   const toggleSave = useRecordingStore((s) => s.toggleSave);
   const isSaved = useRecordingStore((s) => s.isSaved(item.id));
@@ -85,16 +78,20 @@ export default function AudioCard({
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
-  const soundRef = useRef<Audio.Sound | null>(null);
-  const nextSoundRef = sharedNextSoundRef;
+  const player = useAudioPlayer(item.uri, { updateInterval: 200 });
+  const playbackStatus = useAudioPlayerStatus(player);
   const viewRegistrationStartedRef = useRef(false);
+  const finishHandledRef = useRef(false);
+  const wasActiveRef = useRef(false);
+  const lastStopAllAudioFlagRef = useRef(stopAllAudioFlag);
+  const playbackGenerationRef = useRef(0);
 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [positionMillis, setPositionMillis] = useState(0);
-  const [durationMillis, setDurationMillis] = useState(
-    item.duration ? item.duration * 1000 : 0,
-  );
+  const isPlaying = playbackStatus.playing;
+  const positionMillis = playbackStatus.currentTime * 1000;
+  const durationMillis = playbackStatus.duration
+    ? playbackStatus.duration * 1000
+    : (item.duration ?? 0) * 1000;
+  const progress = durationMillis > 0 ? positionMillis / durationMillis : 0;
   const waveformCount = isCompact ? 32 : 48;
   const metadata = [
     neighborhood,
@@ -104,14 +101,10 @@ export default function AudioCard({
   ].filter(Boolean);
 
   useEffect(() => {
-    setIsPlaying(false);
-    setProgress(0);
-    setPositionMillis(0);
-    setDurationMillis(item.duration ? item.duration * 1000 : 0);
     viewRegistrationStartedRef.current = false;
   }, [item.id, item.duration]);
 
-  function registerView() {
+  const registerView = useCallback(() => {
     if (viewRegistrationStartedRef.current || hasViewedPost(item.id)) return;
 
     viewRegistrationStartedRef.current = true;
@@ -126,7 +119,7 @@ export default function AudioCard({
       .catch((err) => {
         console.log("View persistence skipped:", err);
       });
-  }
+  }, [hasViewedPost, incrementViews, item.id]);
 
   function handleReaction(emoji: keyof Reactions) {
     if (useRecordingStore.getState().hasReactedToPost(item.id)) return;
@@ -144,123 +137,96 @@ export default function AudioCard({
       });
   }
 
-  // 🎧 PLAYBACK ENGINE
-  async function handlePlayback() {
+  const startPlayback = useCallback(async () => {
+    const generation = playbackGenerationRef.current;
+    const stopAllFlag = useRecordingStore.getState().stopAllAudioFlag;
+
     try {
-      if (!item.uri) {
-        console.log("Skipping post with missing uri:", item);
-        return;
-      }
-      // 👉 ACTIVE CARD
-      if (activeId === item.id) {
-        // 🎧 PLAY CURRENT (reuse preload if available)
-        if (!soundRef.current) {
-          let sound: Audio.Sound | null = null;
+      await configurePlaybackAudioMode();
 
-          // 1. Try to reuse preloaded sound
-          if (nextSoundRef.current) {
-            const preloaded = nextSoundRef.current;
-            const status = await preloaded.getStatusAsync();
-
-            if (status.isLoaded) {
-              sound = preloaded;
-              nextSoundRef.current = null;
-            }
-          }
-
-          // 2. Fallback → create fresh sound
-          if (!sound) {
-            const result = await Audio.Sound.createAsync(
-              { uri: item.uri },
-              { shouldPlay: false },
-            );
-            sound = result.sound;
-          }
-
-          soundRef.current = sound;
-
-          // 🎯 Attach listener ONCE
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (!status.isLoaded) return;
-
-            setIsPlaying(status.isPlaying);
-            setPositionMillis(status.positionMillis);
-
-            if (status.durationMillis) {
-              setDurationMillis(status.durationMillis);
-              setProgress(status.positionMillis / status.durationMillis);
-            }
-
-            if (status.didJustFinish) {
-              // Reset UI
-              setIsPlaying(false);
-              setProgress(0);
-              setPositionMillis(0);
-
-              // AUTO-ADVANCE with tiny delay smoother flow
-              setTimeout(() => {
-                if (nextItem?.id) {
-                  setActive(nextItem.id);
-                }
-              }, 120);
-            }
-          });
-
-          // ▶️ Safe play
-          const status = await sound.getStatusAsync();
-          if (status.isLoaded) {
-            await sound.playAsync();
-            registerView();
-          }
-        }
-
-        // ⚡ PRELOAD NEXT (non-blocking)
-        if (nextItem && !nextSoundRef.current) {
-          Audio.Sound.createAsync({ uri: nextItem.uri }, { shouldPlay: false })
-            .then(({ sound }) => {
-              nextSoundRef.current = sound;
-            })
-            .catch(() => {});
-        }
-      }
-
-      // 👉 NOT ACTIVE → CLEANUP
-      else {
-        if (soundRef.current) {
-          try {
-            await soundRef.current.setVolumeAsync(0); // smooth fade out
-          } catch {}
-          await safeAudioCleanup(soundRef.current);
-          soundRef.current = null;
-        }
+      if (
+        generation === playbackGenerationRef.current &&
+        stopAllFlag === useRecordingStore.getState().stopAllAudioFlag &&
+        useRecordingStore.getState().activeId === item.id
+      ) {
+        player.play();
       }
     } catch (err) {
-      console.log("handlePlayback error:", err);
+      console.log("Audio playback setup error:", err);
     }
-  }
+  }, [item.id, player]);
 
   useEffect(() => {
-    handlePlayback();
+    const isActive = activeId === item.id;
 
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
-      }
-    };
-  }, [activeId]);
+    if (isActive && !wasActiveRef.current) {
+      // A new active session gets one completion transition.
+      finishHandledRef.current = false;
+    }
+    wasActiveRef.current = isActive;
+
+    if (isActive) {
+      void startPlayback();
+      return;
+    }
+
+    void safeAudioCleanup(player);
+  }, [activeId, item.id, player, startPlayback]);
+
+  useEffect(() => {
+    if (lastStopAllAudioFlagRef.current === stopAllAudioFlag) return;
+
+    lastStopAllAudioFlagRef.current = stopAllAudioFlag;
+    playbackGenerationRef.current += 1;
+    void safeAudioCleanup(player);
+  }, [stopAllAudioFlag, player]);
+
+  useEffect(() => {
+    if (activeId === item.id && playbackStatus.playing) {
+      registerView();
+    }
+  }, [activeId, item.id, playbackStatus.playing, registerView]);
+
+  useEffect(() => {
+    if (
+      activeId !== item.id ||
+      !playbackStatus.didJustFinish ||
+      finishHandledRef.current
+    ) {
+      return;
+    }
+
+    finishHandledRef.current = true;
+    void player.seekTo(0).catch((err) => {
+      console.log("Audio finish reset error:", err);
+    });
+
+    const advanceTimeout = setTimeout(() => {
+      if (nextItem?.id) setActive(nextItem.id);
+    }, 120);
+
+    return () => clearTimeout(advanceTimeout);
+  }, [
+    activeId,
+    item.id,
+    nextItem?.id,
+    playbackStatus.didJustFinish,
+    player,
+    setActive,
+    stopAllAudioFlag,
+  ]);
 
   // 🎛 toggle
   async function togglePlay() {
-    if (!soundRef.current) return;
+    if (activeId !== item.id) {
+      setActive(item.id);
+      return;
+    }
 
-    const status = await soundRef.current.getStatusAsync();
-    if (!status.isLoaded) return;
-
-    if (status.isPlaying) {
-      await soundRef.current.pauseAsync();
+    if (playbackStatus.playing) {
+      player.pause();
     } else {
-      await soundRef.current.playAsync();
-      registerView();
+      void startPlayback();
     }
   }
 

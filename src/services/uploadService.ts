@@ -1,3 +1,4 @@
+import * as FileSystem from "expo-file-system/legacy";
 import { Platform } from "react-native";
 
 export default async function uploadAudio(uri: string) {
@@ -9,41 +10,48 @@ export default async function uploadAudio(uri: string) {
       throw new Error("Missing Cloudinary env variables");
     }
 
-    console.log("Uploading audio:", uri);
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`;
 
-    const formData = new FormData();
-
+    // Web: browser FormData with a real Blob.
     if (Platform.OS === "web") {
-      // Web needs a real Blob/File, not { uri, type, name }
+      const formData = new FormData();
+
       const response = await fetch(uri);
       const blob = await response.blob();
 
       formData.append("file", blob, "griot-recording.m4a");
-    } else {
-      // Native iOS/Android uses React Native file object shape
-      formData.append("file", {
-        uri,
-        type: "audio/m4a",
-        name: "griot-recording.m4a",
-      } as any);
-    }
+      formData.append("upload_preset", uploadPreset);
 
-    formData.append("upload_preset", uploadPreset);
-
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`,
-      {
+      const uploadResponse = await fetch(uploadUrl, {
         method: "POST",
         body: formData,
+      });
+
+      const data = await uploadResponse.json();
+
+      if (!uploadResponse.ok || data.error) {
+        console.log("Cloudinary upload failed");
+        return null;
+      }
+
+      return data.secure_url as string;
+    }
+
+    // Native: let Expo's native file uploader construct the multipart request.
+    const result = await FileSystem.uploadAsync(uploadUrl, uri, {
+      httpMethod: "POST",
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: "file",
+      mimeType: "audio/mp4",
+      parameters: {
+        upload_preset: uploadPreset,
       },
-    );
+    });
 
-    const data = await response.json();
+    const data = JSON.parse(result.body);
 
-    console.log("Cloudinary response:", data);
-
-    if (!response.ok || data.error) {
-      console.log("Cloudinary upload failed:", data.error ?? data);
+    if (result.status < 200 || result.status >= 300 || data.error) {
+      console.log("Cloudinary upload failed");
       return null;
     }
 
