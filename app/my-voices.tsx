@@ -165,6 +165,7 @@ export default function MyVoices() {
           <AudioCard
             item={item}
             nextItem={myPosts[index + 1]}
+            pageHeight={usableHeight}
             onDelete={() => confirmDelete(item.id)}
             deleting={deletingPostId === item.id}
           />

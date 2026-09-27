@@ -166,6 +166,7 @@ export default function Saved() {
           <AudioCard
             item={item}
             nextItem={savedPosts[index + 1]}
+            pageHeight={usableHeight}
             onReport={
               myPostIds.includes(item.id) ? undefined : () => openReport(item.id)
             }

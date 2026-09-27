@@ -10,6 +10,8 @@ export const strings = {
       listens: (count: number) =>
         count === 1 ? "1 listen" : `${count} listens`,
       reactWith: (emoji: string) => `React with ${emoji}`,
+      playVoice: "Play voice",
+      pauseVoice: "Pause voice",
       townFallback: "around you",
       voiceFallbackTitle: "A voice from nearby",
       voiceFallbackTitleWithLocation: (location: string) =>
@@ -26,6 +28,7 @@ export const strings = {
     floatingMic: {
       feed: "Feed",
       myVoices: "My Voices",
+      record: "Record",
       saved: "Saved",
       shareVoice: "Share your voice",
     },
@@ -38,6 +41,7 @@ export const strings = {
     feed: {
       emptyTitle: "No voices here yet",
       emptyBody: "Try another category or come back soon.",
+      swipeNext: "Swipe for next voice",
     },
     myVoices: {
       emptyTitle: "No voices published yet",
@@ -50,7 +54,8 @@ export const strings = {
     },
     record: {
       title: "Share your voice",
-      prompt: "What is happening around you?",
+      tagline: "Real voices. A richer world.",
+      prompt: "What's on your mind?",
       holdToSpeak: "Hold to speak",
       listening: "Listening...",
       releaseToFinish: "Release to finish",
@@ -60,6 +65,7 @@ export const strings = {
       publishing: "Publishing...",
       publishError: "Could not publish. Try again.",
       playPreview: "Play preview",
+      pausePreview: "Pause preview",
       recordAgain: "Record again",
       replace: "Replace",
       voiceTitleLabel: "Give your voice a short title",
@@ -72,6 +78,12 @@ export const strings = {
       discardRecordingMessage: "Your unpublished voice will be lost.",
       keepRecording: "Keep recording",
       discard: "Discard",
+      supportMomentsTitle: "Real moments",
+      supportMomentsBody: "Big or small",
+      supportPerspectiveTitle: "Your perspective",
+      supportPerspectiveBody: "Adds to your community",
+      supportWorldTitle: "A richer world",
+      supportWorldBody: "One voice at a time",
     },
     report: {
       reportVoice: "Report voice",
@@ -112,6 +124,8 @@ export const strings = {
       listens: (count: number) =>
         count === 1 ? "1 ecoute" : `${count} ecoutes`,
       reactWith: (emoji: string) => `Reagir avec ${emoji}`,
+      playVoice: "Ecouter la voix",
+      pauseVoice: "Mettre la voix en pause",
       townFallback: "autour de toi",
       voiceFallbackTitle: "Une voix des environs",
       voiceFallbackTitleWithLocation: (location: string) =>
@@ -129,6 +143,7 @@ export const strings = {
     floatingMic: {
       feed: "Fil",
       myVoices: "Mes voix",
+      record: "Enregistrer",
       saved: "Sauvegardee",
       shareVoice: "Partage ta voix",
     },
@@ -141,6 +156,7 @@ export const strings = {
     feed: {
       emptyTitle: "Aucune voix ici pour l'instant",
       emptyBody: "Essaie une autre categorie ou reviens bientot.",
+      swipeNext: "Glisse pour la voix suivante",
     },
     myVoices: {
       emptyTitle: "Aucune voix publiee",
@@ -153,7 +169,8 @@ export const strings = {
     },
     record: {
       title: "Partage ta voix",
-      prompt: "Que se passe-t-il autour de vous ?",
+      tagline: "De vraies voix. Un monde plus riche.",
+      prompt: "Qu'avez-vous en tete ?",
       holdToSpeak: "Maintenez pour parler",
       listening: "A l'ecoute...",
       releaseToFinish: "Relachez pour terminer",
@@ -163,6 +180,7 @@ export const strings = {
       publishing: "Publication...",
       publishError: "Impossible de publier. Reessaie.",
       playPreview: "Ecouter l'apercu",
+      pausePreview: "Mettre l'apercu en pause",
       recordAgain: "Recommencer",
       replace: "Remplacer",
       voiceTitleLabel: "Donne un titre court a ta voix",
@@ -175,6 +193,12 @@ export const strings = {
       discardRecordingMessage: "Votre voix non publiee sera perdue.",
       keepRecording: "Garder l'enregistrement",
       discard: "Abandonner",
+      supportMomentsTitle: "De vrais moments",
+      supportMomentsBody: "Grands ou petits",
+      supportPerspectiveTitle: "Votre point de vue",
+      supportPerspectiveBody: "Enrichit votre communaute",
+      supportWorldTitle: "Un monde plus riche",
+      supportWorldBody: "Une voix a la fois",
     },
     report: {
       reportVoice: "Signaler la voix",

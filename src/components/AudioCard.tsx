@@ -5,27 +5,20 @@ import { getStrings } from "@/src/lib/i18n/strings";
 import { configurePlaybackAudioMode } from "@/src/lib/audioSession";
 import { getPostTitle } from "@/src/lib/postPresentation";
 import { safeAudioCleanup } from "@/src/lib/safeAudioCleanup";
+import { useGriotAudioPlayer } from "@/src/lib/useGriotAudioPlayer";
 import {
   incrementPostViews,
   incrementReaction,
 } from "@/src/services/postService";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayerStatus } from "expo-audio";
 import React, { useCallback, useEffect, useRef } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  ImageBackground,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import CircularAudioProgress from "./CircularAudioProgress";
+import VoiceAtmosphere from "./VoiceAtmosphere";
 import type { AudioPost, Reactions } from "../store/useRecordingStore";
 import { useRecordingStore } from "../store/useRecordingStore";
 
-const SCREEN_HEIGHT = Dimensions.get("window").height;
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const waveformBars = [8, 14, 22, 13, 28, 18, 10, 24, 32, 15, 20, 26];
 const reactionEmojis: (keyof Reactions)[] = ["😂", "🚨", "👍"];
 
 type Props = {
@@ -36,6 +29,7 @@ type Props = {
   deleting?: boolean;
   onReport?: () => void;
   reported?: boolean;
+  pageHeight?: number;
 };
 
 export default function AudioCard({
@@ -46,12 +40,12 @@ export default function AudioCard({
   deleting = false,
   onReport,
   reported = false,
+  pageHeight,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
-  const isCompact = usableHeight < 700 || SCREEN_WIDTH < 390;
+  const screenHeight = pageHeight ?? 760;
+  const isCompact = screenHeight < 700;
   const t = getStrings();
-  const country = item.country || t.audioCard.countryFallback;
   const neighborhood = item.neighborhood?.trim();
   const town = item.town || t.audioCard.townFallback;
   const displayTitle = getPostTitle(item, t);
@@ -61,11 +55,6 @@ export default function AudioCard({
       ? t.categories.aroundYou
       : t.categories.moments;
   const categoryEmoji = item.category === "around_you" ? "📍" : "😂";
-  const categoryDescription =
-    item.category === "around_you"
-      ? t.categories.aroundYouDescription
-      : t.categories.momentsDescription;
-
   const stopAllAudioFlag = useRecordingStore((s) => s.stopAllAudioFlag);
 
   const toggleSave = useRecordingStore((s) => s.toggleSave);
@@ -78,13 +67,14 @@ export default function AudioCard({
   const activeId = useRecordingStore((s) => s.activeId);
   const setActive = useRecordingStore((s) => s.setActive);
 
-  const player = useAudioPlayer(item.uri, { updateInterval: 200 });
+  const player = useGriotAudioPlayer(item.uri, { updateInterval: 200 });
   const playbackStatus = useAudioPlayerStatus(player);
   const viewRegistrationStartedRef = useRef(false);
   const finishHandledRef = useRef(false);
   const wasActiveRef = useRef(false);
   const lastStopAllAudioFlagRef = useRef(stopAllAudioFlag);
   const playbackGenerationRef = useRef(0);
+  const playOnActivationRef = useRef(false);
 
   const isPlaying = playbackStatus.playing;
   const positionMillis = playbackStatus.currentTime * 1000;
@@ -92,13 +82,11 @@ export default function AudioCard({
     ? playbackStatus.duration * 1000
     : (item.duration ?? 0) * 1000;
   const progress = durationMillis > 0 ? positionMillis / durationMillis : 0;
-  const waveformCount = isCompact ? 32 : 48;
-  const metadata = [
-    neighborhood,
-    t.audioCard.now,
-    t.audioCard.listens(item.views),
-    item.distance ? `📍 ${item.distance} ${t.audioCard.away}` : "",
-  ].filter(Boolean);
+  const locationLabel = neighborhood || town;
+  const contextLabel =
+    item.category === "around_you" && item.distance
+      ? `${locationLabel} · ${item.distance} ${t.audioCard.away}`
+      : `${locationLabel} · ${t.audioCard.now}`;
 
   useEffect(() => {
     viewRegistrationStartedRef.current = false;
@@ -166,7 +154,10 @@ export default function AudioCard({
     wasActiveRef.current = isActive;
 
     if (isActive) {
-      void startPlayback();
+      if (playOnActivationRef.current) {
+        playOnActivationRef.current = false;
+        void startPlayback();
+      }
       return;
     }
 
@@ -219,6 +210,7 @@ export default function AudioCard({
   // 🎛 toggle
   async function togglePlay() {
     if (activeId !== item.id) {
+      playOnActivationRef.current = true;
       setActive(item.id);
       return;
     }
@@ -239,122 +231,63 @@ export default function AudioCard({
   }
 
   return (
-    <Pressable
-      onPress={togglePlay}
-      style={{ height: usableHeight, backgroundColor: theme.bg }}
-    >
-      <ImageBackground
-        source={{
-          uri: "https://images.unsplash.com/photo-1508057198894-247b23fe5ade",
+    <View style={{ height: screenHeight, backgroundColor: theme.bg }}>
+      <VoiceAtmosphere category={item.category} />
+      <View
+        className="flex-1 justify-between"
+        style={{
+          paddingTop: insets.top + 18,
+          paddingBottom: insets.bottom + 106,
+          paddingHorizontal: isCompact ? 20 : 26,
         }}
-        blurRadius={50}
-        className="flex-1"
       >
-        <View
-          className="absolute inset-0"
-          style={{ backgroundColor: theme.bg }}
-        />
-        <View
-          className="absolute rounded-full self-center"
-          style={{
-            width: isCompact ? 250 : 320,
-            height: isCompact ? 250 : 320,
-            top: isCompact ? "43%" : "32%",
-            backgroundColor: `${theme.deep}55`,
-          }}
-        />
-        <View className="absolute inset-0 bg-black/55" />
-
-        <View
-          className="flex-1"
-          style={{ paddingHorizontal: isCompact ? 18 : 24 }}
-        >
-          {/* TOP BAR */}
-          <View
-            style={{ paddingTop: insets.top + (isCompact ? 8 : 16) }}
-            className="items-center"
-          >
-            <Text
-              className="tracking-[6px] font-semibold"
-              style={{
-                color: theme.light,
-                fontSize: isCompact ? 16 : 18,
-              }}
-            >
-              GRIOT
-            </Text>
-
-            {showCategoryHeader && (
-              <View
-                className="rounded-full border border-white/10"
-                style={{
-                  marginTop: isCompact ? 18 : 32,
-                  paddingHorizontal: isCompact ? 18 : 20,
-                  paddingVertical: isCompact ? 9 : 12,
-                  backgroundColor: `${theme.primary}CC`,
-                }}
-              >
-                <Text
-                  className="text-white font-semibold"
-                  style={{ fontSize: isCompact ? 16 : 18 }}
-                >
-                  {categoryEmoji} {categoryLabel}
-                </Text>
-              </View>
-            )}
-
-            {showCategoryHeader && (
-              <Text
-                className="text-white/85 text-center"
-                numberOfLines={isCompact ? 2 : 3}
-                style={{
-                  marginTop: isCompact ? 12 : 16,
-                  paddingHorizontal: isCompact ? 8 : 32,
-                  fontSize: isCompact ? 14 : 16,
-                  lineHeight: isCompact ? 18 : 22,
-                }}
-              >
-                {categoryDescription}
-              </Text>
-            )}
-          </View>
-
-          {/* CENTER — VOICE */}
-          <View
-            className="flex-1 justify-center items-center"
-            style={{
-              paddingHorizontal: isCompact ? 4 : 16,
-              paddingBottom: isCompact ? 104 : 144,
-            }}
-          >
-            <Text
-              className="text-white text-center font-normal"
-              numberOfLines={isCompact ? 4 : 5}
-              adjustsFontSizeToFit
-              minimumFontScale={0.72}
-              style={{
-                fontSize: isCompact ? 25 : 32,
-                lineHeight: isCompact ? 31 : 40,
-              }}
-            >
-              {displayTitle}
-            </Text>
-
-            <Text
-              className="text-white/85 text-center"
-              numberOfLines={1}
-              style={{
-                marginTop: isCompact ? 18 : 28,
-                fontSize: isCompact ? 14 : 16,
-              }}
-            >
-              {metadata.join(" • ")}
-            </Text>
-
+        <View className="items-center">
+          <Text className="tracking-[6px] font-semibold" style={{ color: theme.light, fontSize: 17 }}>
+            GRIOT
+          </Text>
+          {showCategoryHeader && (
             <View
-              className="flex-row items-center justify-center"
-              style={{ marginTop: isCompact ? 12 : 16 }}
+              className="rounded-full border border-white/10"
+              style={{ marginTop: 12, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: "rgba(0,0,0,0.22)" }}
             >
+              <Text className="text-xs font-semibold" style={{ color: theme.light }}>
+                {categoryEmoji} {categoryLabel}
+              </Text>
+            </View>
+          )}
+          <Text className="text-white/65 text-sm" style={{ marginTop: 15 }} numberOfLines={1}>
+            {contextLabel}
+          </Text>
+        </View>
+
+        <View className="items-center">
+          <CircularAudioProgress
+            progress={progress}
+            playing={isPlaying}
+            accentColor={theme.primary}
+            onToggle={togglePlay}
+            accessibilityLabel={
+              isPlaying ? t.audioCard.pauseVoice : t.audioCard.playVoice
+            }
+          />
+          <Text className="text-white/75 text-sm" style={{ marginTop: 12 }}>
+            {formatTime(positionMillis)} / {formatTime(durationMillis)}
+          </Text>
+        </View>
+
+        <View className="items-center">
+          <Text
+            className="text-white text-center font-medium"
+            numberOfLines={2}
+            style={{ fontSize: isCompact ? 23 : 27, lineHeight: isCompact ? 29 : 34 }}
+          >
+            {displayTitle}
+          </Text>
+          <Text className="text-white/50 text-xs" style={{ marginTop: 10 }}>
+            {t.audioCard.listens(item.views)}
+          </Text>
+
+          <View className="flex-row items-center justify-center" style={{ marginTop: 18 }}>
               {reactionEmojis.map((emoji) => (
                 <Pressable
                   key={emoji}
@@ -365,9 +298,9 @@ export default function AudioCard({
                   }}
                   className="rounded-full border flex-row items-center"
                   style={{
-                    marginHorizontal: 4,
-                    paddingHorizontal: isCompact ? 10 : 12,
-                    paddingVertical: isCompact ? 5 : 6,
+                    marginHorizontal: 3,
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
                     opacity: hasReacted ? 0.45 : 1,
                     borderColor: hasReacted
                       ? "rgba(255,255,255,0.12)"
@@ -388,32 +321,8 @@ export default function AudioCard({
                   </Text>
                 </Pressable>
               ))}
-            </View>
-
-            {/* PLAYER */}
-            <View
-              className="items-center w-full"
-              style={{ marginTop: isCompact ? 22 : 28 }}
-            >
-              <View className="w-full flex-row items-center justify-center">
-                <View style={{ width: isCompact ? 42 : 48 }} />
-                <View
-                  className="rounded-full border items-center justify-center"
-                  style={{
-                    width: isCompact ? 88 : 112,
-                    height: isCompact ? 88 : 112,
-                    borderColor: theme.primary,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: theme.primary,
-                      fontSize: isCompact ? 26 : 30,
-                    }}
-                  >
-                    {isPlaying ? "⏸" : "▶"}
-                  </Text>
-                </View>
+          </View>
+          <View className="flex-row items-center justify-center" style={{ marginTop: 16 }}>
                 <Pressable
                   onPress={(event) => {
                     event.stopPropagation();
@@ -421,9 +330,8 @@ export default function AudioCard({
                   }}
                   className="rounded-full border border-white/40 items-center justify-center"
                   style={{
-                    width: isCompact ? 42 : 48,
-                    height: isCompact ? 42 : 48,
-                    marginLeft: isCompact ? 18 : 28,
+                    width: 42,
+                    height: 42,
                   }}
                   accessibilityLabel={
                     isSaved ? t.actions.saved : t.actions.save
@@ -445,9 +353,9 @@ export default function AudioCard({
                     }}
                     className="rounded-full border border-white/40 items-center justify-center"
                     style={{
-                      width: isCompact ? 42 : 48,
-                      height: isCompact ? 42 : 48,
-                      marginLeft: isCompact ? 10 : 14,
+                    width: 42,
+                    height: 42,
+                    marginLeft: 10,
                       opacity: deleting ? 0.45 : 1,
                     }}
                     accessibilityLabel={t.myVoices.deleteVoice}
@@ -470,9 +378,9 @@ export default function AudioCard({
                     }}
                     className="rounded-full border border-white/40 items-center justify-center"
                     style={{
-                      width: isCompact ? 42 : 48,
-                      height: isCompact ? 42 : 48,
-                      marginLeft: isCompact ? 10 : 14,
+                    width: 42,
+                    height: 42,
+                    marginLeft: 10,
                       opacity: reported ? 0.45 : 1,
                     }}
                     accessibilityLabel={
@@ -490,59 +398,11 @@ export default function AudioCard({
                   </Pressable>
                 )}
               </View>
-
-              <View
-                className="items-center"
-                style={{ marginTop: isCompact ? 12 : 20 }}
-              >
-                <Text className="text-white/75 text-sm">
-                  📍 {town}, {country}
-                </Text>
-              </View>
-
-              <View
-                className="flex-row items-end gap-[2px] mb-3"
-                style={{
-                  height: isCompact ? 38 : 56,
-                  marginTop: isCompact ? 18 : 32,
-                }}
-              >
-                {Array.from({ length: waveformCount }).map((_, i) => (
-                  <View
-                    key={i}
-                    className="w-[3px] rounded-full"
-                    style={{
-                      height:
-                        waveformBars[i % waveformBars.length] *
-                        (isCompact ? 0.82 : 1),
-                      backgroundColor: theme.primary,
-                      opacity: i / waveformCount + 0.18,
-                    }}
-                  />
-                ))}
-              </View>
-
-              <View className="w-full flex-row items-center gap-3">
-                <Text className="text-white/85 text-xs">
-                  {formatTime(positionMillis)}
-                </Text>
-                <View className="flex-1 h-[3px] bg-white/15 rounded-full overflow-hidden">
-                  <View
-                    className="h-full"
-                    style={{
-                      width: `${progress * 100}%`,
-                      backgroundColor: theme.primary,
-                    }}
-                  />
-                </View>
-                <Text className="text-white/85 text-xs">
-                  {formatTime(durationMillis)}
-                </Text>
-              </View>
-            </View>
+          <Text className="text-white/45 text-xs" style={{ marginTop: 18 }}>
+            ↑ {t.feed.swipeNext}
+          </Text>
           </View>
         </View>
-      </ImageBackground>
-    </Pressable>
+      </View>
   );
 }

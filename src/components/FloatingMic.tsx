@@ -1,6 +1,7 @@
 // src/components/FloatingMic.tsx
 
 import { getStrings } from "@/src/lib/i18n/strings";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useEffect } from "react";
 import { Dimensions, Pressable, Text, View } from "react-native";
@@ -15,8 +16,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
+export const FLOATING_NAV_BAR_HEIGHT = 64;
+export const FLOATING_NAV_BOTTOM_OFFSET = 6;
+export const FLOATING_NAV_CENTER_RAISE = 18;
+export const FLOATING_NAV_CONTENT_BREATHING_ROOM = 16;
+
+export function getFloatingNavContentInset(bottomSafeAreaInset: number) {
+  return (
+    bottomSafeAreaInset +
+    FLOATING_NAV_BOTTOM_OFFSET +
+    FLOATING_NAV_BAR_HEIGHT +
+    FLOATING_NAV_CENTER_RAISE +
+    FLOATING_NAV_CONTENT_BREATHING_ROOM
+  );
+}
+
 type Props = {
-  activeRoute: "feed" | "myVoices" | "saved";
+  activeRoute: "feed" | "myVoices" | "record" | "saved";
+  showRecordLabel?: boolean;
   accentColor?: string;
   onPressFeed: () => void;
   onPressMyVoices: () => void;
@@ -26,6 +43,7 @@ type Props = {
 
 export default function FloatingMic({
   activeRoute,
+  showRecordLabel = false,
   accentColor = "#E6B566",
   onPressFeed,
   onPressMyVoices,
@@ -35,9 +53,10 @@ export default function FloatingMic({
   const insets = useSafeAreaInsets();
   const t = getStrings();
   const isCompact = SCREEN_WIDTH < 390;
-  const sideItemWidth = 64;
-  const micSlotWidth = isCompact ? 78 : 96;
-  const micSize = isCompact ? 64 : 80;
+  const sideItemWidth = 58;
+  const micSlotWidth = isCompact ? 66 : 74;
+  const micSize = isCompact ? 54 : 58;
+  const isRecordActive = activeRoute === "record";
 
   const scale = useSharedValue(1);
   const glow = useSharedValue(0.7);
@@ -63,20 +82,20 @@ export default function FloatingMic({
     <View
       pointerEvents="box-none"
       className="absolute bottom-0 left-0 right-0 items-center z-50"
-      style={{ paddingBottom: insets.bottom + 10 }}
+      style={{ paddingBottom: insets.bottom + FLOATING_NAV_BOTTOM_OFFSET }}
     >
       <View
         className="rounded-[28px] border border-white/15 bg-black/75 flex-row items-center justify-between"
         style={{
-          width: "92%",
-          paddingHorizontal: isCompact ? 10 : 32,
-          paddingVertical: isCompact ? 10 : 12,
+          width: "90%",
+          height: FLOATING_NAV_BAR_HEIGHT,
+          paddingHorizontal: isCompact ? 8 : 18,
         }}
       >
         <Pressable
           onPress={onPressFeed}
           className="items-center"
-          style={{ width: sideItemWidth }}
+          style={{ width: sideItemWidth, height: 52, justifyContent: "center" }}
         >
           <Text
             className="text-xl"
@@ -95,7 +114,7 @@ export default function FloatingMic({
         <Pressable
           onPress={onPressMyVoices}
           className="items-center"
-          style={{ width: sideItemWidth }}
+          style={{ width: sideItemWidth, height: 52, justifyContent: "center" }}
         >
           <Text
             className="text-xl"
@@ -115,20 +134,21 @@ export default function FloatingMic({
           </Text>
         </Pressable>
 
-        <View className="items-center" style={{ width: micSlotWidth }}>
+        <View className="items-center" style={{ width: micSlotWidth, height: FLOATING_NAV_BAR_HEIGHT }}>
           <Animated.View
-            className="absolute rounded-full"
+            className="absolute rounded-full items-center"
             style={[
               glowStyle,
               {
                 width: micSize,
                 height: micSize,
                 backgroundColor: `${accentColor}24`,
+                top: -FLOATING_NAV_CENTER_RAISE,
               },
             ]}
           />
 
-          <Animated.View style={animatedStyle}>
+          <Animated.View style={[animatedStyle, { position: "absolute", top: -FLOATING_NAV_CENTER_RAISE }]}>
             <Pressable
               onPressIn={() => {
                 scale.value = withSpring(0.9);
@@ -151,15 +171,20 @@ export default function FloatingMic({
                 elevation: 12,
               }}
             >
-              <Text className="text-black text-2xl">🎤</Text>
+              <MaterialCommunityIcons name="microphone" size={27} color="#16110A" />
             </Pressable>
           </Animated.View>
+          {showRecordLabel || isRecordActive ? (
+            <Text className="absolute text-xs" style={{ color: accentColor, top: 44 }}>
+              {t.floatingMic.record}
+            </Text>
+          ) : null}
         </View>
 
         <Pressable
           onPress={onPressSaved}
           className="items-center"
-          style={{ width: sideItemWidth }}
+          style={{ width: sideItemWidth, height: 52, justifyContent: "center" }}
         >
           <Text
             className="text-xl"

@@ -1,14 +1,18 @@
 // app/record.tsx
 import { getStrings, type Strings } from "@/src/lib/i18n/strings";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   getVoiceTitleError,
   MAX_VOICE_TITLE_LENGTH,
 } from "@/src/lib/postPresentation";
 import { Category, useRecordingStore } from "@/src/store/useRecordingStore";
+import CircularVoiceRecorder from "@/src/components/CircularVoiceRecorder";
+import FloatingMic, { getFloatingNavContentInset } from "@/src/components/FloatingMic";
+import VoiceAtmosphere from "@/src/components/VoiceAtmosphere";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
-  useAudioPlayer,
+  useAudioPlayerStatus,
   useAudioRecorder,
   useAudioRecorderState,
 } from "expo-audio";
@@ -17,10 +21,13 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +38,7 @@ import {
   configurePlaybackAudioMode,
   configureRecordingAudioMode,
 } from "@/src/lib/audioSession";
+import { useGriotAudioPlayer } from "@/src/lib/useGriotAudioPlayer";
 
 type Mode = "idle" | "recording";
 type RecordingOperation = "idle" | "starting" | "recording" | "stopping";
@@ -57,7 +65,6 @@ type Categories = {
   key: Category;
   emoji: string;
   labelKey: keyof Strings["categories"];
-  bgColor?: string;
 };
 
 const CATEGORIES: Categories[] = [
@@ -65,13 +72,11 @@ const CATEGORIES: Categories[] = [
     key: "moments",
     emoji: "😂",
     labelKey: "moments",
-    bgColor: "bg-black",
   },
   {
     key: "around_you",
     emoji: "📍",
     labelKey: "aroundYou",
-    bgColor: "bg-red-900/20",
   },
 ];
 
@@ -183,6 +188,7 @@ async function resolvePlace(location: CapturedLocation): Promise<ResolvedPlace> 
 
 export default function Record() {
   const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
   const t = getStrings();
 
   const triggerStopAllAudio = useRecordingStore((s) => s.triggerStopAllAudio);
@@ -209,7 +215,8 @@ export default function Record() {
   const [category, setCategory] = useState<Category>("moments");
 
   const [pendingUri, setPendingUri] = useState<string | null>(null);
-  const previewPlayer = useAudioPlayer(pendingUri);
+  const previewPlayer = useGriotAudioPlayer(pendingUri);
+  const previewStatus = useAudioPlayerStatus(previewPlayer);
   const [pendingDuration, setPendingDuration] = useState(0);
   const [voiceTitle, setVoiceTitle] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -384,6 +391,8 @@ export default function Record() {
     let durationMillis = recorderStateRef.current.durationMillis;
 
     try {
+      const preStopState = recorderStateRef.current;
+      durationMillis = Math.max(durationMillis, preStopState.durationMillis);
       await recorder.stop();
 
       if (isMountedRef.current) {
@@ -502,17 +511,26 @@ export default function Record() {
     void startRecording();
   }
 
-  async function playPreview() {
+  async function togglePreview() {
     if (!pendingUri || previewOperationRef.current) return;
 
     previewOperationRef.current = true;
 
     try {
+      if (previewStatus.playing) {
+        previewPlayer.pause();
+        return;
+      }
+
       await configurePlaybackAudioMode();
       if (!isMountedRef.current) return;
 
-      previewPlayer.pause();
-      await previewPlayer.seekTo(0);
+      if (
+        previewStatus.duration > 0 &&
+        previewStatus.currentTime >= previewStatus.duration - 0.05
+      ) {
+        await previewPlayer.seekTo(0);
+      }
       previewPlayer.play();
     } catch (err) {
       console.log("play preview error:", err);
@@ -526,121 +544,148 @@ export default function Record() {
     return `0:${s.toString().padStart(2, "0")}`;
   };
 
-  return (
-    <View
-      className="flex-1 bg-black px-6"
-      style={{
-        paddingTop: insets.top + 14,
-        paddingBottom: insets.bottom + 24,
-      }}
-    >
+  const recorderSize = Math.min(280, Math.max(242, width - 96));
+  const isCompact = height < 720;
+  const showSupport = height >= 880;
+  const isRecording = mode === "recording";
+  const isDraft = Boolean(pendingUri);
+  const instrumentSize = isDraft ? Math.round(recorderSize * 0.82) : recorderSize;
+  const navContentInset = getFloatingNavContentInset(insets.bottom);
+  const previewDurationMillis = previewStatus.duration
+    ? previewStatus.duration * 1000
+    : pendingDuration;
+  const previewPositionMillis = previewStatus.currentTime * 1000;
+  const previewProgress =
+    previewDurationMillis > 0 ? previewPositionMillis / previewDurationMillis : 0;
+  const recordingProgress = Math.min(recorderState.durationMillis / 60_000, 1);
+
+  const recordContent = (
+    <>
       <View className="flex-row items-center justify-between">
         <Pressable
           onPress={handleBack}
-          className="w-11 h-11 rounded-full bg-white/10 items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel={t.actions.cancel}
+          className="w-14 h-14 rounded-full bg-white/10 items-center justify-center"
         >
-          <Text className="text-white text-2xl">‹</Text>
+          <Feather name="chevron-left" size={30} color="#FFFFFF" />
         </Pressable>
-        <Text className="text-white/70 tracking-[6px] font-semibold">
-          GRIOT
-        </Text>
-        <View className="w-11 h-11" />
+        <View className="items-center">
+          <Text className="tracking-[7px] font-semibold" style={{ color: "#F5C04B", fontSize: 18 }}>
+            GRIOT
+          </Text>
+          <Text className="text-white/55 text-xs" style={{ marginTop: 4 }}>
+            {t.record.tagline}
+          </Text>
+        </View>
+        <View className="w-14 h-14" />
       </View>
 
-      <View className="mt-8 items-center">
-        <Text className="text-white text-3xl font-semibold text-center">
-          {t.record.title}
-        </Text>
-        <Text className="text-white/55 text-base text-center mt-3">
-          {t.record.prompt}
-        </Text>
-      </View>
+      {!isDraft ? (
+        <>
+          <View className="items-center" style={{ marginTop: isCompact ? 28 : 42, opacity: isRecording ? 0.58 : 1 }}>
+            <Text className="text-white font-semibold text-center" style={{ fontSize: isCompact ? 32 : 38 }}>
+              {t.record.title}
+            </Text>
+            <Text className="text-white/60 text-lg text-center" style={{ marginTop: 12 }}>
+              {t.record.prompt}
+            </Text>
+          </View>
 
-      <View className="mt-8 flex-row justify-center gap-4">
-        {CATEGORIES.map((c: Categories) => (
-          <Pressable
-            key={c.key}
-            onPress={() => setCategory(c.key)}
-            className={`px-4 py-2 rounded-full ${
-              category === c.key ? "bg-neutral-100" : "bg-white/10"
-            }`}
+          <View
+            className="self-center flex-row rounded-full border border-white/10 bg-black/45 p-1"
+            style={{ marginTop: isCompact ? 22 : 30, opacity: isRecording ? 0.55 : 1 }}
           >
-            <View className="items-center">
-              <Text className="text-lg">{c.emoji}</Text>
-              <Text
-                className={`text-xs font-semibold ${category === c.key ? "text-black" : "text-white"}`}
-              >
-                {t.categories[c.labelKey]}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
+            {CATEGORIES.map((item) => {
+              const selected = category === item.key;
 
-      {/* CENTER */}
-      <View className="flex-1 items-center justify-center">
-        <View
-          className="absolute rounded-full border border-blue-400/10"
-          style={{ width: 270, height: 270 }}
-        />
-        <View
-          className="absolute rounded-full bg-blue-500/5 border border-blue-300/15"
-          style={{ width: 220, height: 220 }}
-        />
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => setCategory(item.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.categories[item.labelKey]}
+                  accessibilityState={{ selected }}
+                  disabled={isRecording}
+                  className="rounded-full flex-row items-center justify-center"
+                  style={{
+                    minWidth: isCompact ? 118 : 138,
+                    paddingHorizontal: 14,
+                    paddingVertical: 12,
+                    backgroundColor: selected ? "#F5B820" : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 18 }}>{item.emoji}</Text>
+                  <Text
+                    className="font-semibold"
+                    style={{ color: selected ? "#16110A" : "#FFFFFF", marginLeft: 8 }}
+                  >
+                    {t.categories[item.labelKey]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+
+      <View className="items-center" style={{ marginTop: isDraft ? 26 : isCompact ? 28 : 42 }}>
         <Pressable
           onPress={() => {
-            if (pendingUri) {
-              void playPreview();
-            }
+            if (pendingUri) void togglePreview();
           }}
           onPressIn={() => {
-            if (mode === "idle" && !pendingUri && !isPublishing) {
-              void startRecording();
-            }
+            if (__DEV__ && !pendingUri) console.log("[Record responder] press-in");
+            if (mode === "idle" && !pendingUri && !isPublishing) void startRecording();
           }}
           onPressOut={() => {
+            if (__DEV__ && !pendingUri) console.log("[Record responder] press-out");
             if (recordingOperationRef.current === "starting") {
               recordingReleaseRequestedRef.current = true;
             } else if (recordingOperationRef.current === "recording") {
               void stopRecording();
             }
           }}
-          className={`w-36 h-36 rounded-full items-center justify-center border ${
-            mode === "recording"
-              ? "bg-red-600 border-red-300"
-              : pendingUri
-                ? "bg-blue-600 border-blue-200"
-                : "bg-neutral-900 border-blue-300/40"
-          }`}
+          onResponderTerminate={() => {
+            if (__DEV__ && !pendingUri) console.log("[Record responder] terminated");
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isRecording ? t.record.releaseToFinish : pendingUri ? t.record.playPreview : t.record.holdToSpeak
+          }
+          accessibilityHint={pendingUri ? undefined : t.record.holdToSpeak}
+          disabled={isPublishing}
+          style={{ width: instrumentSize, height: instrumentSize }}
         >
-          <Text className="text-white text-3xl">
-            {mode === "recording" ? "●" : "🎤"}
-          </Text>
+          <CircularVoiceRecorder
+            size={instrumentSize}
+            state={isRecording ? "recording" : pendingUri ? "preview" : "idle"}
+            playing={previewStatus.playing}
+            progress={isRecording ? recordingProgress : previewProgress}
+            primaryLabel={
+              isRecording
+                ? t.record.listening
+                : pendingUri
+                  ? previewStatus.playing
+                    ? t.record.pausePreview
+                    : t.record.playPreview
+                  : t.record.holdToSpeak
+            }
+            secondaryLabel={isRecording ? t.record.releaseToFinish : undefined}
+            elapsedLabel={
+              isRecording
+                ? format(recorderState.durationMillis)
+                : pendingUri
+                  ? `${format(previewPositionMillis)} / ${format(previewDurationMillis)}`
+                  : undefined
+            }
+          />
         </Pressable>
-
-        <Text className="text-neutral-300 text-base font-semibold mt-6">
-          {mode === "recording"
-            ? t.record.listening
-            : pendingUri
-              ? t.record.playPreview
-              : t.record.holdToSpeak}
-        </Text>
-        <Text className="text-neutral-500 text-sm mt-2">
-          {mode === "recording" ? t.record.releaseToFinish : ""}
-        </Text>
-
-        {mode === "recording" && (
-          <Text className="text-white text-xl mt-4">
-            {format(recorderState.durationMillis)}
-          </Text>
-        )}
       </View>
 
-      {pendingUri && (
-        <View className="rounded-3xl border border-white/10 bg-white/[0.06] p-4 mb-4">
-          <Text className="text-white font-semibold mb-2">
-            {t.record.voiceTitleLabel}
-          </Text>
+      {pendingUri ? (
+        <View className="rounded-3xl border border-white/10 bg-black/45 p-4" style={{ marginTop: 30 }}>
+          <Text className="text-white font-semibold mb-2">{t.record.voiceTitleLabel}</Text>
           <TextInput
             value={voiceTitle}
             onChangeText={(value) => {
@@ -649,76 +694,370 @@ export default function Record() {
             }}
             maxLength={MAX_VOICE_TITLE_LENGTH}
             editable={!isPublishing}
+            accessibilityLabel={t.record.voiceTitleLabel}
             placeholder={t.record.voiceTitlePlaceholder}
             placeholderTextColor="rgba(255,255,255,0.35)"
-            className="rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-white text-base"
+            className="rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-white text-base"
           />
           <View className="flex-row justify-between mt-2">
-            <Text className="text-red-200/80 text-xs">
-              {publishError || (voiceTitle.length > 0 ? titleError : "")}
-            </Text>
+            <Text className="text-red-200/80 text-xs">{publishError || (voiceTitle.length > 0 ? titleError : "")}</Text>
             <Text className="text-white/45 text-xs">
-              {t.record.voiceTitleCharacterCount(
-                voiceTitle.length,
-                MAX_VOICE_TITLE_LENGTH,
-              )}
+              {t.record.voiceTitleCharacterCount(voiceTitle.length, MAX_VOICE_TITLE_LENGTH)}
             </Text>
           </View>
+          <View className="flex-row self-start rounded-full border border-white/10 bg-black/30 p-1" style={{ marginTop: 14 }}>
+            {CATEGORIES.map((item) => {
+              const selected = category === item.key;
 
+              return (
+                <Pressable
+                  key={item.key}
+                  onPress={() => setCategory(item.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.categories[item.labelKey]}
+                  accessibilityState={{ selected }}
+                  disabled={isPublishing}
+                  className="rounded-full flex-row items-center"
+                  style={{
+                    paddingHorizontal: 10,
+                    paddingVertical: 7,
+                    backgroundColor: selected ? "rgba(245,184,32,0.22)" : "transparent",
+                  }}
+                >
+                  <Text style={{ fontSize: 13 }}>{item.emoji}</Text>
+                  <Text className="text-xs font-medium" style={{ color: selected ? "#F5C04B" : "#FFFFFF99", marginLeft: 5 }}>
+                    {t.categories[item.labelKey]}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <View className="flex-row gap-3 mt-4">
             <Pressable
               disabled={isPublishing}
-              onPress={() => {
-                void playPreview();
-              }}
+              onPress={() => void handleRecordAgain()}
+              accessibilityRole="button"
+              accessibilityLabel={t.record.recordAgain}
               className="flex-1 rounded-full border border-white/15 py-3 items-center"
               style={{ opacity: isPublishing ? 0.5 : 1 }}
             >
-              <Text className="text-white font-semibold">
-                {t.record.playPreview}
-              </Text>
+              <Text className="text-white font-semibold">{t.record.recordAgain}</Text>
             </Pressable>
             <Pressable
               disabled={isPublishing}
-              onPress={() => {
-                void handleRecordAgain();
-              }}
-              className="flex-1 rounded-full border border-white/15 py-3 items-center"
+              onPress={() => void discardDraft()}
+              accessibilityRole="button"
+              accessibilityLabel={t.record.discard}
+              className="flex-1 rounded-full py-3 items-center"
               style={{ opacity: isPublishing ? 0.5 : 1 }}
             >
-              <Text className="text-white font-semibold">
-                {t.record.recordAgain}
-              </Text>
+              <Text className="text-red-200/80 font-medium">{t.record.discard}</Text>
             </Pressable>
           </View>
-
           <Pressable
             disabled={!canPublish}
-            onPress={() => {
-              void publishRecording();
-            }}
+            onPress={() => void publishRecording()}
+            accessibilityRole="button"
+            accessibilityLabel={t.record.publish}
             className="rounded-full py-4 items-center mt-3"
-            style={{
-              opacity: canPublish ? 1 : 0.45,
-              backgroundColor: "#FFFFFF",
-            }}
+            style={{ opacity: canPublish ? 1 : 0.45, backgroundColor: "#F5B820" }}
           >
             <Text className="text-black font-semibold">
               {isPublishing ? t.record.publishing : t.record.publish}
             </Text>
           </Pressable>
         </View>
-      )}
+      ) : showSupport && !isRecording ? (
+        <View className="flex-row justify-between" style={{ marginTop: 56 }}>
+          {[
+            ["waveform", t.record.supportMomentsTitle, t.record.supportMomentsBody],
+            ["compass-outline", t.record.supportPerspectiveTitle, t.record.supportPerspectiveBody],
+            ["account-group-outline", t.record.supportWorldTitle, t.record.supportWorldBody],
+          ].map(([icon, title, body]) => (
+            <View key={title} className="items-center" style={{ width: "31%" }}>
+              <MaterialCommunityIcons name={icon as "waveform"} size={26} color="#FFFFFF" />
+              <Text className="text-white text-center font-medium text-sm" style={{ marginTop: 10 }}>
+                {title}
+              </Text>
+              <Text className="text-white/50 text-center text-xs" style={{ marginTop: 5 }}>
+                {body}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </>
+  );
 
-      {/* FEEDBACK OVERLAY */}
+  return (
+    <View className="flex-1 bg-black">
+      <VoiceAtmosphere category={category} />
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        {isDraft ? (
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{
+              flexGrow: 1,
+              paddingTop: insets.top + 14,
+              paddingBottom: navContentInset,
+              paddingHorizontal: isCompact ? 20 : 26,
+            }}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+          >
+        <View className="flex-row items-center justify-between">
+          <Pressable
+            onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel={t.actions.cancel}
+            className="w-14 h-14 rounded-full bg-white/10 items-center justify-center"
+          >
+            <Feather name="chevron-left" size={30} color="#FFFFFF" />
+          </Pressable>
+          <View className="items-center">
+            <Text className="tracking-[7px] font-semibold" style={{ color: "#F5C04B", fontSize: 18 }}>
+              GRIOT
+            </Text>
+            <Text className="text-white/55 text-xs" style={{ marginTop: 4 }}>
+              {t.record.tagline}
+            </Text>
+          </View>
+          <View className="w-14 h-14" />
+        </View>
+
+        {!isDraft ? (
+          <>
+            <View className="items-center" style={{ marginTop: isCompact ? 28 : 42, opacity: isRecording ? 0.58 : 1 }}>
+              <Text className="text-white font-semibold text-center" style={{ fontSize: isCompact ? 32 : 38 }}>
+                {t.record.title}
+              </Text>
+              <Text className="text-white/60 text-lg text-center" style={{ marginTop: 12 }}>
+                {t.record.prompt}
+              </Text>
+            </View>
+
+            <View
+              className="self-center flex-row rounded-full border border-white/10 bg-black/45 p-1"
+              style={{ marginTop: isCompact ? 22 : 30, opacity: isRecording ? 0.55 : 1 }}
+            >
+              {CATEGORIES.map((item) => {
+                const selected = category === item.key;
+
+                return (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setCategory(item.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.categories[item.labelKey]}
+                    accessibilityState={{ selected }}
+                    disabled={isRecording}
+                    className="rounded-full flex-row items-center justify-center"
+                    style={{
+                      minWidth: isCompact ? 118 : 138,
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      backgroundColor: selected ? "#F5B820" : "transparent",
+                    }}
+                  >
+                    <Text style={{ fontSize: 18 }}>{item.emoji}</Text>
+                    <Text
+                      className="font-semibold"
+                      style={{ color: selected ? "#16110A" : "#FFFFFF", marginLeft: 8 }}
+                    >
+                      {t.categories[item.labelKey]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        ) : null}
+
+        <View className="items-center" style={{ marginTop: isDraft ? 26 : isCompact ? 28 : 42 }}>
+          <Pressable
+            onPress={() => {
+              if (pendingUri) void togglePreview();
+            }}
+            onPressIn={() => {
+              if (mode === "idle" && !pendingUri && !isPublishing) void startRecording();
+            }}
+            onPressOut={() => {
+              if (recordingOperationRef.current === "starting") {
+                recordingReleaseRequestedRef.current = true;
+              } else if (recordingOperationRef.current === "recording") {
+                void stopRecording();
+              }
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isRecording ? t.record.releaseToFinish : pendingUri ? t.record.playPreview : t.record.holdToSpeak
+            }
+            accessibilityHint={pendingUri ? undefined : t.record.holdToSpeak}
+            disabled={isPublishing}
+            style={{ width: instrumentSize, height: instrumentSize }}
+          >
+            <CircularVoiceRecorder
+              size={instrumentSize}
+              state={isRecording ? "recording" : pendingUri ? "preview" : "idle"}
+              playing={previewStatus.playing}
+              progress={isRecording ? recordingProgress : previewProgress}
+              primaryLabel={
+                isRecording
+                  ? t.record.listening
+                  : pendingUri
+                    ? previewStatus.playing
+                      ? t.record.pausePreview
+                      : t.record.playPreview
+                    : t.record.holdToSpeak
+              }
+              secondaryLabel={isRecording ? t.record.releaseToFinish : undefined}
+              elapsedLabel={
+                isRecording
+                  ? format(recorderState.durationMillis)
+                  : pendingUri
+                    ? `${format(previewPositionMillis)} / ${format(previewDurationMillis)}`
+                    : undefined
+              }
+            />
+          </Pressable>
+        </View>
+
+        {pendingUri ? (
+          <View className="rounded-3xl border border-white/10 bg-black/45 p-4" style={{ marginTop: 30 }}>
+            <Text className="text-white font-semibold mb-2">{t.record.voiceTitleLabel}</Text>
+            <TextInput
+              value={voiceTitle}
+              onChangeText={(value) => {
+                setVoiceTitle(value);
+                setPublishError("");
+              }}
+              maxLength={MAX_VOICE_TITLE_LENGTH}
+              editable={!isPublishing}
+              accessibilityLabel={t.record.voiceTitleLabel}
+              placeholder={t.record.voiceTitlePlaceholder}
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              className="rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-white text-base"
+            />
+            <View className="flex-row justify-between mt-2">
+              <Text className="text-red-200/80 text-xs">{publishError || (voiceTitle.length > 0 ? titleError : "")}</Text>
+              <Text className="text-white/45 text-xs">
+                {t.record.voiceTitleCharacterCount(voiceTitle.length, MAX_VOICE_TITLE_LENGTH)}
+              </Text>
+            </View>
+            <View className="flex-row self-start rounded-full border border-white/10 bg-black/30 p-1" style={{ marginTop: 14 }}>
+              {CATEGORIES.map((item) => {
+                const selected = category === item.key;
+
+                return (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setCategory(item.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.categories[item.labelKey]}
+                    accessibilityState={{ selected }}
+                    disabled={isPublishing}
+                    className="rounded-full flex-row items-center"
+                    style={{
+                      paddingHorizontal: 10,
+                      paddingVertical: 7,
+                      backgroundColor: selected ? "rgba(245,184,32,0.22)" : "transparent",
+                    }}
+                  >
+                    <Text style={{ fontSize: 13 }}>{item.emoji}</Text>
+                    <Text className="text-xs font-medium" style={{ color: selected ? "#F5C04B" : "#FFFFFF99", marginLeft: 5 }}>
+                      {t.categories[item.labelKey]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View className="flex-row gap-3 mt-4">
+              <Pressable
+                disabled={isPublishing}
+                onPress={() => void handleRecordAgain()}
+                accessibilityRole="button"
+                accessibilityLabel={t.record.recordAgain}
+                className="flex-1 rounded-full border border-white/15 py-3 items-center"
+                style={{ opacity: isPublishing ? 0.5 : 1 }}
+              >
+                <Text className="text-white font-semibold">{t.record.recordAgain}</Text>
+              </Pressable>
+              <Pressable
+                disabled={isPublishing}
+                onPress={() => void discardDraft()}
+                accessibilityRole="button"
+                accessibilityLabel={t.record.discard}
+                className="flex-1 rounded-full py-3 items-center"
+                style={{ opacity: isPublishing ? 0.5 : 1 }}
+              >
+                <Text className="text-red-200/80 font-medium">{t.record.discard}</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              disabled={!canPublish}
+              onPress={() => void publishRecording()}
+              accessibilityRole="button"
+              accessibilityLabel={t.record.publish}
+              className="rounded-full py-4 items-center mt-3"
+              style={{ opacity: canPublish ? 1 : 0.45, backgroundColor: "#F5B820" }}
+            >
+              <Text className="text-black font-semibold">
+                {isPublishing ? t.record.publishing : t.record.publish}
+              </Text>
+            </Pressable>
+          </View>
+        ) : showSupport && !isRecording ? (
+          <View className="flex-row justify-between" style={{ marginTop: 56 }}>
+            {[
+              ["waveform", t.record.supportMomentsTitle, t.record.supportMomentsBody],
+              ["compass-outline", t.record.supportPerspectiveTitle, t.record.supportPerspectiveBody],
+              ["account-group-outline", t.record.supportWorldTitle, t.record.supportWorldBody],
+            ].map(([icon, title, body]) => (
+              <View key={title} className="items-center" style={{ width: "31%" }}>
+                <MaterialCommunityIcons name={icon as "waveform"} size={26} color="#FFFFFF" />
+                <Text className="text-white text-center font-medium text-sm" style={{ marginTop: 10 }}>
+                  {title}
+                </Text>
+                <Text className="text-white/50 text-center text-xs" style={{ marginTop: 5 }}>
+                  {body}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+          </ScrollView>
+        ) : (
+          <View
+            className="flex-1"
+            style={{
+              paddingTop: insets.top + 14,
+              paddingBottom: navContentInset,
+              paddingHorizontal: isCompact ? 20 : 26,
+            }}
+          >
+            {recordContent}
+          </View>
+        )}
+      </KeyboardAvoidingView>
+
+      <FloatingMic
+        activeRoute="record"
+        showRecordLabel
+        onPressFeed={() => router.replace("/")}
+        onPressMyVoices={() => router.replace("/my-voices")}
+        onPressRecord={() => undefined}
+        onPressSaved={() => router.replace("/saved")}
+      />
+
       {justPosted && (
-        <View className="absolute bottom-24 self-center bg-black/80 px-6 py-4 rounded-xl">
-          <Text className="text-white text-center mb-2">
-            ✅ {t.record.published}
-          </Text>
-
-          <Pressable onPress={handleRedo}>
-            <Text className="text-blue-400 text-center">
+        <View className="absolute self-center rounded-xl bg-black/80 px-6 py-4" style={{ bottom: navContentInset }}>
+          <Text className="text-white text-center mb-2">{t.record.published}</Text>
+          <Pressable onPress={handleRedo} accessibilityRole="button" accessibilityLabel={t.record.replace}>
+            <Text style={{ color: "#F5B820" }} className="text-center">
               {t.record.replace}
             </Text>
           </Pressable>

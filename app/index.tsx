@@ -14,16 +14,14 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Dimensions,
   FlatList,
   Pressable,
   RefreshControl,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 type CategoryFilter = "all" | Category;
 
@@ -72,7 +70,7 @@ async function getCurrentFeedLocation(): Promise<Coordinates | null> {
 
 export default function App() {
   const insets = useSafeAreaInsets();
-  const usableHeight = SCREEN_HEIGHT - insets.top - insets.bottom;
+  const { height: viewportHeight } = useWindowDimensions();
   const t = getStrings();
 
   const posts = useRecordingStore((s) => s.posts);
@@ -192,7 +190,7 @@ export default function App() {
     loadPosts();
   }, [loadFeedPosts]);
 
-  // AutoPlay when app opens or filter changes
+  // Keep the active page selected when feed data or filters change.
   useEffect(() => {
     if (filteredPosts.length === 0) return;
 
@@ -252,6 +250,7 @@ export default function App() {
             <AudioCard
               item={item}
               nextItem={filteredPosts[index + 1]}
+              pageHeight={viewportHeight}
               showCategoryHeader={false}
               onReport={
                 myPostIds.includes(item.id)
@@ -277,14 +276,18 @@ export default function App() {
           snapToAlignment="start"
           decelerationRate="fast"
           showsVerticalScrollIndicator={false}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           getItemLayout={(_, index) => ({
-            length: usableHeight,
-            offset: usableHeight * index,
+            length: viewportHeight,
+            offset: viewportHeight * index,
             index,
           })}
         />
@@ -302,14 +305,14 @@ export default function App() {
       <View
         pointerEvents="box-none"
         className="absolute left-0 right-0 items-center z-40"
-        style={{ top: insets.top + 44 }}
+        style={{ top: insets.top + 78 }}
       >
         <View className="flex-row rounded-full bg-black/45 border border-white/10 p-1">
           {filterOptions.map((option) => (
             <Pressable
               key={option.key}
               onPress={() => setSelectedFilter(option.key)}
-              className="rounded-full px-4 py-2"
+            className="rounded-full px-3 py-1.5"
               style={{
                 backgroundColor:
                   selectedFilter === option.key
