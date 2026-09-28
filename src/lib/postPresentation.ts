@@ -1,26 +1,32 @@
 import type { Strings } from "@/src/lib/i18n/strings";
-import type { AudioPost } from "@/src/store/useRecordingStore";
+import type { AudioPost, Category } from "@/src/store/useRecordingStore";
 
 export const MIN_VOICE_TITLE_LENGTH = 3;
 export const MAX_VOICE_TITLE_LENGTH = 70;
+// Mirrored by the posts_contes_max_duration check in supabase/posts_contes_category.sql.
+export const MAX_CONTE_DURATION_SECONDS = 300;
 
-export function getPostTitle(post: AudioPost, t: Strings) {
-  const title = post.title?.trim();
-  if (title) return title;
+export function getMaxDurationMillis(category: Category) {
+  return category === "contes" ? MAX_CONTE_DURATION_SECONDS * 1000 : null;
+}
 
-  const neighborhood = post.neighborhood?.trim();
-  if (neighborhood) {
-    return t.audioCard.voiceFallbackTitleWithLocation(neighborhood);
-  }
+export function exceedsCategoryDuration(
+  category: Category,
+  durationMillis: number,
+) {
+  const maxMillis = getMaxDurationMillis(category);
+  return maxMillis !== null && durationMillis > maxMillis;
+}
 
-  return t.audioCard.voiceFallbackTitle;
+// Titles are optional: a voice without one has no title, never a fallback.
+export function getPostTitle(post: AudioPost) {
+  return post.title?.trim() || null;
 }
 
 export function getVoiceTitleError(title: string, t: Strings) {
   const trimmedTitle = title.trim();
 
-  if (!trimmedTitle) return t.record.voiceTitleRequired;
-  if (trimmedTitle.length < MIN_VOICE_TITLE_LENGTH) {
+  if (trimmedTitle && trimmedTitle.length < MIN_VOICE_TITLE_LENGTH) {
     return t.record.voiceTitleTooShort;
   }
 

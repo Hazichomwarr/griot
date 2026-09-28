@@ -9,7 +9,7 @@ type CategoryTheme = {
 };
 
 const categoryThemes: Record<Category, CategoryTheme> = {
-  moments: {
+  contes: {
     primary: "#FFB300",
     light: "#FFD54F",
     accent: "#FF9100",
@@ -28,5 +28,5 @@ const categoryThemes: Record<Category, CategoryTheme> = {
 export function getCategoryTheme(category?: string | null) {
   return category === "around_you"
     ? categoryThemes.around_you
-    : categoryThemes.moments;
+    : categoryThemes.contes;
 }

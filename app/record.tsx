@@ -2,6 +2,8 @@
 import { getStrings, type Strings } from "@/src/lib/i18n/strings";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
+  exceedsCategoryDuration,
+  getMaxDurationMillis,
   getVoiceTitleError,
   MAX_VOICE_TITLE_LENGTH,
 } from "@/src/lib/postPresentation";
@@ -69,14 +71,14 @@ type Categories = {
 
 const CATEGORIES: Categories[] = [
   {
-    key: "moments",
-    emoji: "😂",
-    labelKey: "moments",
-  },
-  {
     key: "around_you",
     emoji: "📍",
     labelKey: "aroundYou",
+  },
+  {
+    key: "contes",
+    emoji: "🌙",
+    labelKey: "contes",
   },
 ];
 
@@ -212,7 +214,7 @@ export default function Record() {
   const isMountedRef = useRef(true);
   const previewOperationRef = useRef(false);
 
-  const [category, setCategory] = useState<Category>("moments");
+  const [category, setCategory] = useState<Category>("around_you");
 
   const [pendingUri, setPendingUri] = useState<string | null>(null);
   const previewPlayer = useGriotAudioPlayer(pendingUri);
@@ -226,8 +228,20 @@ export default function Record() {
   const [lastPostedId, setLastPostedId] = useState<string | null>(null);
   const titleError = pendingUri ? getVoiceTitleError(voiceTitle, t) : "";
   const trimmedTitle = voiceTitle.trim();
+  const draftDurationMillis = Math.max(
+    pendingDuration,
+    previewStatus.duration > 0 ? previewStatus.duration * 1000 : 0,
+  );
+  const durationError =
+    pendingUri && exceedsCategoryDuration(category, draftDurationMillis)
+      ? t.record.contesDurationTooLong
+      : "";
   const canPublish =
-    Boolean(pendingUri) && !titleError && !isPublishing && mode !== "recording";
+    Boolean(pendingUri) &&
+    !titleError &&
+    !durationError &&
+    !isPublishing &&
+    mode !== "recording";
 
   useEffect(() => {
     recorderStateRef.current = recorderState;
@@ -440,14 +454,13 @@ export default function Record() {
       // 2. Create DB post
       const createdPost = await createPost({
         audio_url: audioUrl,
-        duration: Math.floor(pendingDuration / 1000),
-        title: trimmedTitle,
+        duration: Math.floor(draftDurationMillis / 1000),
+        title: trimmedTitle || null,
 
         views: 0,
 
         reactions: {
           "😂": 0,
-          "🚨": 0,
           "👍": 0,
         },
 
@@ -541,7 +554,7 @@ export default function Record() {
 
   const format = (ms: number) => {
     const s = Math.floor(ms / 1000);
-    return `0:${s.toString().padStart(2, "0")}`;
+    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
   };
 
   const recorderSize = Math.min(280, Math.max(242, width - 96));
@@ -557,7 +570,16 @@ export default function Record() {
   const previewPositionMillis = previewStatus.currentTime * 1000;
   const previewProgress =
     previewDurationMillis > 0 ? previewPositionMillis / previewDurationMillis : 0;
-  const recordingProgress = Math.min(recorderState.durationMillis / 60_000, 1);
+  const maxDurationMillis = getMaxDurationMillis(category);
+  const recordingProgress = Math.min(
+    recorderState.durationMillis / (maxDurationMillis ?? 60_000),
+    1,
+  );
+  const recordingElapsedLabel = maxDurationMillis
+    ? `${format(recorderState.durationMillis)} / ${format(maxDurationMillis)}`
+    : format(recorderState.durationMillis);
+  const idleHint =
+    !pendingUri && maxDurationMillis ? t.record.contesDurationHint : undefined;
 
   const recordContent = (
     <>
@@ -671,10 +693,10 @@ export default function Record() {
                     : t.record.playPreview
                   : t.record.holdToSpeak
             }
-            secondaryLabel={isRecording ? t.record.releaseToFinish : undefined}
+            secondaryLabel={isRecording ? t.record.releaseToFinish : idleHint}
             elapsedLabel={
               isRecording
-                ? format(recorderState.durationMillis)
+                ? recordingElapsedLabel
                 : pendingUri
                   ? `${format(previewPositionMillis)} / ${format(previewDurationMillis)}`
                   : undefined
@@ -700,7 +722,9 @@ export default function Record() {
             className="rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-white text-base"
           />
           <View className="flex-row justify-between mt-2">
-            <Text className="text-red-200/80 text-xs">{publishError || (voiceTitle.length > 0 ? titleError : "")}</Text>
+            <Text className="flex-1 mr-3 text-red-200/80 text-xs">
+              {publishError || durationError || (voiceTitle.length > 0 ? titleError : "")}
+            </Text>
             <Text className="text-white/45 text-xs">
               {t.record.voiceTitleCharacterCount(voiceTitle.length, MAX_VOICE_TITLE_LENGTH)}
             </Text>
@@ -914,10 +938,10 @@ export default function Record() {
                       : t.record.playPreview
                     : t.record.holdToSpeak
               }
-              secondaryLabel={isRecording ? t.record.releaseToFinish : undefined}
+              secondaryLabel={isRecording ? t.record.releaseToFinish : idleHint}
               elapsedLabel={
                 isRecording
-                  ? format(recorderState.durationMillis)
+                  ? recordingElapsedLabel
                   : pendingUri
                     ? `${format(previewPositionMillis)} / ${format(previewDurationMillis)}`
                     : undefined
@@ -943,7 +967,9 @@ export default function Record() {
               className="rounded-2xl border border-white/10 bg-black/50 px-4 py-3 text-white text-base"
             />
             <View className="flex-row justify-between mt-2">
-              <Text className="text-red-200/80 text-xs">{publishError || (voiceTitle.length > 0 ? titleError : "")}</Text>
+              <Text className="flex-1 mr-3 text-red-200/80 text-xs">
+              {publishError || durationError || (voiceTitle.length > 0 ? titleError : "")}
+            </Text>
               <Text className="text-white/45 text-xs">
                 {t.record.voiceTitleCharacterCount(voiceTitle.length, MAX_VOICE_TITLE_LENGTH)}
               </Text>

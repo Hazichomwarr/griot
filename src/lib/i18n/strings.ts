@@ -13,15 +13,12 @@ export const strings = {
       playVoice: "Play voice",
       pauseVoice: "Pause voice",
       townFallback: "around you",
-      voiceFallbackTitle: "A voice from nearby",
-      voiceFallbackTitleWithLocation: (location: string) =>
-        `A voice from ${location}`,
     },
     categories: {
       all: "All",
-      moments: "Moments",
       aroundYou: "Around You",
-      momentsDescription: "Stories that make us laugh, feel, or say only here.",
+      contes: "Contes",
+      contesDescription: "Short stories, legends and voices worth passing on.",
       aroundYouDescription:
         "What is happening nearby. Info, alerts, tips and more.",
     },
@@ -68,12 +65,14 @@ export const strings = {
       pausePreview: "Pause preview",
       recordAgain: "Record again",
       replace: "Replace",
-      voiceTitleLabel: "Give your voice a short title",
-      voiceTitlePlaceholder: "What is happening nearby?",
-      voiceTitleRequired: "Add a title before publishing.",
+      voiceTitleLabel: "Add a title (optional)",
+      voiceTitlePlaceholder: "A few words about your voice",
       voiceTitleTooShort: "Use at least 3 characters.",
       voiceTitleCharacterCount: (count: number, max: number) =>
         `${count} / ${max}`,
+      contesDurationHint: "Up to 5 minutes",
+      contesDurationTooLong:
+        "A Conte can be up to 5 minutes. Record a shorter one or choose Around You.",
       discardRecordingTitle: "Discard recording?",
       discardRecordingMessage: "Your unpublished voice will be lost.",
       keepRecording: "Keep recording",
@@ -127,16 +126,12 @@ export const strings = {
       playVoice: "Ecouter la voix",
       pauseVoice: "Mettre la voix en pause",
       townFallback: "autour de toi",
-      voiceFallbackTitle: "Une voix des environs",
-      voiceFallbackTitleWithLocation: (location: string) =>
-        `Une voix de ${location}`,
     },
     categories: {
       all: "Tout",
-      moments: "Moments",
-      aroundYou: "Autour de toi",
-      momentsDescription:
-        "Des histoires qui font rire, ressentir, ou dire seulement ici.",
+      aroundYou: "Autour de vous",
+      contes: "Contes",
+      contesDescription: "Histoires, légendes et voix à transmettre.",
       aroundYouDescription:
         "Ce qui se passe tout pres. Infos, alertes, conseils et plus.",
     },
@@ -183,12 +178,14 @@ export const strings = {
       pausePreview: "Mettre l'apercu en pause",
       recordAgain: "Recommencer",
       replace: "Remplacer",
-      voiceTitleLabel: "Donne un titre court a ta voix",
-      voiceTitlePlaceholder: "Que se passe-t-il pres d'ici ?",
-      voiceTitleRequired: "Ajoute un titre avant de publier.",
+      voiceTitleLabel: "Ajouter un titre (facultatif)",
+      voiceTitlePlaceholder: "Quelques mots sur votre voix",
       voiceTitleTooShort: "Utilise au moins 3 caracteres.",
       voiceTitleCharacterCount: (count: number, max: number) =>
         `${count} / ${max}`,
+      contesDurationHint: "5 minutes maximum",
+      contesDurationTooLong:
+        "Un conte dure 5 minutes maximum. Enregistrez-en un plus court ou choisissez Autour de vous.",
       discardRecordingTitle: "Abandonner l'enregistrement ?",
       discardRecordingMessage: "Votre voix non publiee sera perdue.",
       keepRecording: "Garder l'enregistrement",

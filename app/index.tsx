@@ -95,8 +95,8 @@ export default function App() {
   const activeTheme = getCategoryTheme(activePost?.category);
   const filterOptions: { key: CategoryFilter; label: string }[] = [
     { key: "all", label: t.categories.all },
-    { key: "moments", label: t.categories.moments },
     { key: "around_you", label: t.categories.aroundYou },
+    { key: "contes", label: t.categories.contes },
   ];
 
   const [showToast, setShowToast] = useState(false);

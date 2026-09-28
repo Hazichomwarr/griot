@@ -19,7 +19,7 @@ import VoiceAtmosphere from "./VoiceAtmosphere";
 import type { AudioPost, Reactions } from "../store/useRecordingStore";
 import { useRecordingStore } from "../store/useRecordingStore";
 
-const reactionEmojis: (keyof Reactions)[] = ["😂", "🚨", "👍"];
+const reactionEmojis: (keyof Reactions)[] = ["😂", "👍"];
 
 type Props = {
   item: AudioPost;
@@ -48,13 +48,13 @@ export default function AudioCard({
   const t = getStrings();
   const neighborhood = item.neighborhood?.trim();
   const town = item.town || t.audioCard.townFallback;
-  const displayTitle = getPostTitle(item, t);
+  const displayTitle = getPostTitle(item);
   const theme = getCategoryTheme(item.category);
   const categoryLabel =
     item.category === "around_you"
       ? t.categories.aroundYou
-      : t.categories.moments;
-  const categoryEmoji = item.category === "around_you" ? "📍" : "😂";
+      : t.categories.contes;
+  const categoryEmoji = item.category === "around_you" ? "📍" : "🌙";
   const stopAllAudioFlag = useRecordingStore((s) => s.stopAllAudioFlag);
 
   const toggleSave = useRecordingStore((s) => s.toggleSave);
@@ -276,13 +276,15 @@ export default function AudioCard({
         </View>
 
         <View className="items-center">
-          <Text
-            className="text-white text-center font-medium"
-            numberOfLines={2}
-            style={{ fontSize: isCompact ? 23 : 27, lineHeight: isCompact ? 29 : 34 }}
-          >
-            {displayTitle}
-          </Text>
+          {displayTitle ? (
+            <Text
+              className="text-white text-center font-medium"
+              numberOfLines={2}
+              style={{ fontSize: isCompact ? 23 : 27, lineHeight: isCompact ? 29 : 34 }}
+            >
+              {displayTitle}
+            </Text>
+          ) : null}
           <Text className="text-white/50 text-xs" style={{ marginTop: 10 }}>
             {t.audioCard.listens(item.views)}
           </Text>

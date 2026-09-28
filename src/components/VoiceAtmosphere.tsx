@@ -8,14 +8,14 @@ import {
 } from "react-native";
 
 // Keep these as null until the corresponding local files are supplied:
-// - assets/backgrounds/griot-moments.jpg
+// - assets/backgrounds/griot-contes.jpg
 // - assets/backgrounds/griot-around-you.jpg
 //
 // Once present, replace each null with a static require so Metro bundles the
-// files, for example: require("../../assets/backgrounds/griot-moments.jpg").
+// files, for example: require("../../assets/backgrounds/griot-contes.jpg").
 const BACKGROUND_ASSETS: Record<Category, ImageSourcePropType | null> = {
-  moments: null,
   around_you: null,
+  contes: null,
 };
 
 function VoiceAtmosphere({ category }: { category: Category }) {

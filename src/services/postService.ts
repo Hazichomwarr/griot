@@ -1,5 +1,6 @@
 // src/services/postService.ts
 import { calculateDistanceKm } from "@/src/lib/distance";
+import { exceedsCategoryDuration } from "@/src/lib/postPresentation";
 import { supabase } from "@/src/lib/supabase";
 import type {
   AudioPost,
@@ -48,14 +49,15 @@ type DbPost = {
 
 const APPROXIMATE_DISTANCE_TIE_KM = 0.05;
 
+// Legacy "moments" rows (and any unknown value) are read as Contes so
+// historical voices never drop out of the feed.
 function normalizeCategory(category?: string | null): Category {
-  return category === "around_you" ? "around_you" : "moments";
+  return category === "around_you" ? "around_you" : "contes";
 }
 
 function normalizeReactions(reactions?: Partial<Reactions> | null): Reactions {
   return {
     "😂": reactions?.["😂"] ?? 0,
-    "🚨": reactions?.["🚨"] ?? 0,
     "👍": reactions?.["👍"] ?? 0,
   };
 }
@@ -168,7 +170,7 @@ export async function getPosts(options?: {
 export async function createPost(post: {
   audio_url: string;
   duration?: number;
-  title: string;
+  title?: string | null;
   views?: number;
   reactions?: Record<string, number>;
   username: string;
@@ -181,12 +183,17 @@ export async function createPost(post: {
   latitude?: number | null;
   longitude?: number | null;
 }) {
+  if (exceedsCategoryDuration(post.category, (post.duration ?? 0) * 1000)) {
+    console.log("createPost rejected: duration exceeds category limit");
+    return null;
+  }
+
   const dbPost = {
     audio_url: post.audio_url,
     duration: post.duration ?? 0,
-    title: post.title.trim(),
+    title: post.title?.trim() || null,
     views: post.views ?? 0,
-    reactions: post.reactions ?? { "😂": 0, "🚨": 0, "👍": 0 },
+    reactions: post.reactions ?? { "😂": 0, "👍": 0 },
     username: post.username,
     avatar: post.avatar ?? "",
     neighborhood: post.neighborhood ?? "",

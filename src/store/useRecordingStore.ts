@@ -5,11 +5,10 @@ import { create } from "zustand";
 
 console.log("STORE INIT");
 
-export type Category = "moments" | "around_you";
+export type Category = "around_you" | "contes";
 
 export type Reactions = {
   "😂": number;
-  "🚨": number;
   "👍": number;
 };
 
