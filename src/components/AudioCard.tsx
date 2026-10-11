@@ -85,7 +85,7 @@ export default function AudioCard({
   const locationLabel = neighborhood || town;
   const contextLabel =
     item.category === "around_you" && item.distance
-      ? `${locationLabel} · ${item.distance} ${t.audioCard.away}`
+      ? `${locationLabel} · ${t.audioCard.distanceAway(item.distance)}`
       : `${locationLabel} · ${t.audioCard.now}`;
 
   useEffect(() => {
@@ -336,7 +336,7 @@ export default function AudioCard({
                     height: 42,
                   }}
                   accessibilityLabel={
-                    isSaved ? t.actions.saved : t.actions.save
+                    isSaved ? t.audioCard.unsaveVoice : t.audioCard.saveVoice
                   }
                 >
                   <Text

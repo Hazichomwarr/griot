@@ -44,8 +44,18 @@
       "expo-status-bar",
       "expo-web-browser",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": ["en", "fr"]
+        }
+      ]
     ],
+    "locales": {
+      "en": "./locales/en.json",
+      "fr": "./locales/fr.json"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -25,7 +25,17 @@ export default function CircularVoiceRecorder({
   const isRecording = state === "recording";
   const isPreview = state === "preview";
   const centerSize = size * 0.55;
+  // Labels must stay inside the inner circle for longer (e.g. French) copy:
+  // constrain their width to the circle's chord and scale type down with
+  // smaller instruments. At the full-size instrument (centerSize ~154) the
+  // type sizes match the original design.
+  const typeScale = Math.min(1, centerSize / 154);
+  const primaryFontSize = Math.max(14, Math.round(16 * typeScale));
+  const secondaryFontSize = Math.max(11, Math.round(12 * typeScale));
   const iconName = isPreview ? (playing ? "pause" : "play") : "microphone-outline";
+  const isPlayingPreview = isPreview && playing;
+  const previewPlayingFontSize = Math.max(12, Math.round(15 * typeScale));
+  const labelFontSize = isPlayingPreview ? previewPlayingFontSize : primaryFontSize;
 
   return (
     <View className="items-center justify-center" style={{ width: size, height: size }}>
@@ -63,11 +73,29 @@ export default function CircularVoiceRecorder({
           color="#FFFFFF"
           style={{ marginLeft: isPreview && !playing ? 4 : 0 }}
         />
-        <Text className="text-white/75 text-base font-medium" style={{ marginTop: 10 }}>
+        <Text
+          className="text-white/75 font-medium text-center"
+          numberOfLines={isPlayingPreview ? undefined : 2}
+          style={{
+            marginTop: 8,
+            maxWidth: centerSize * (isPlayingPreview ? 0.8 : 0.88),
+            fontSize: labelFontSize,
+            lineHeight: Math.round(labelFontSize * 1.2),
+          }}
+        >
           {primaryLabel}
         </Text>
         {secondaryLabel ? (
-          <Text className="text-white/45 text-xs" style={{ marginTop: 5 }}>
+          <Text
+            className="text-white/45 text-center"
+            numberOfLines={2}
+            style={{
+              marginTop: 4,
+              maxWidth: centerSize * 0.76,
+              fontSize: secondaryFontSize,
+              lineHeight: secondaryFontSize + 3,
+            }}
+          >
             {secondaryLabel}
           </Text>
         ) : null}

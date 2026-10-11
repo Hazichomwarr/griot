@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSMicrophoneUsageDescription": "GRIOT utilise le micro pour enregistrer les voix que vous choisissez de partager.",
+    "NSLocationWhenInUseUsageDescription": "GRIOT utilise votre position pour afficher les voix proches de vous et situer les voix que vous publiez."
+  }
+}

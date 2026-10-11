@@ -53,8 +53,16 @@ export default function FloatingMic({
   const insets = useSafeAreaInsets();
   const t = getStrings();
   const isCompact = SCREEN_WIDTH < 390;
-  const sideItemWidth = 58;
   const micSlotWidth = isCompact ? 66 : 74;
+  const barHorizontalPadding = isCompact ? 8 : 18;
+  // Side items share the bar's remaining width so longer labels
+  // (e.g. "Sauvegardées") stay on one line.
+  const sideItemWidth = Math.min(
+    96,
+    Math.floor(
+      (SCREEN_WIDTH * 0.9 - 2 - barHorizontalPadding * 2 - micSlotWidth) / 3,
+    ),
+  );
   const micSize = isCompact ? 54 : 58;
   const isRecordActive = activeRoute === "record";
 
@@ -89,7 +97,7 @@ export default function FloatingMic({
         style={{
           width: "90%",
           height: FLOATING_NAV_BAR_HEIGHT,
-          paddingHorizontal: isCompact ? 8 : 18,
+          paddingHorizontal: barHorizontalPadding,
         }}
       >
         <Pressable
@@ -105,6 +113,9 @@ export default function FloatingMic({
           </Text>
           <Text
             className="text-xs mt-1"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
             style={{ color: activeRoute === "feed" ? accentColor : "#B8B8B8" }}
           >
             {t.floatingMic.feed}
@@ -126,6 +137,9 @@ export default function FloatingMic({
           </Text>
           <Text
             className="text-xs mt-1"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
             style={{
               color: activeRoute === "myVoices" ? accentColor : "#B8B8B8",
             }}
@@ -196,6 +210,9 @@ export default function FloatingMic({
           </Text>
           <Text
             className="text-xs mt-1"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
             style={{
               color: activeRoute === "saved" ? accentColor : "#B8B8B8",
             }}

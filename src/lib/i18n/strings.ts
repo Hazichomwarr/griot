@@ -1,17 +1,19 @@
+import { getLocales } from "expo-localization";
+
 type Language = "en" | "fr";
 
 export const strings = {
   en: {
     audioCard: {
-      countryFallback: "Burkina Faso",
-      neighborhoodFallback: "nearby",
       now: "now",
-      away: "away",
+      distanceAway: (distance: string) => `${distance} away`,
       listens: (count: number) =>
         count === 1 ? "1 listen" : `${count} listens`,
       reactWith: (emoji: string) => `React with ${emoji}`,
       playVoice: "Play voice",
       pauseVoice: "Pause voice",
+      saveVoice: "Save voice",
+      unsaveVoice: "Remove from saved",
       townFallback: "around you",
     },
     categories: {
@@ -27,13 +29,10 @@ export const strings = {
       myVoices: "My Voices",
       record: "Record",
       saved: "Saved",
-      shareVoice: "Share your voice",
     },
     actions: {
       cancel: "Cancel",
       delete: "Delete",
-      save: "Save",
-      saved: "Saved",
     },
     feed: {
       emptyTitle: "No voices here yet",
@@ -46,7 +45,6 @@ export const strings = {
       deleteVoice: "Delete voice",
       deleteVoiceTitle: "Delete voice?",
       deleteVoiceMessage: "This voice will be permanently removed.",
-      deleteVoiceSuccess: "Voice deleted",
       deleteVoiceError: "Could not delete this voice. Try again.",
     },
     record: {
@@ -56,7 +54,6 @@ export const strings = {
       holdToSpeak: "Hold to speak",
       listening: "Listening...",
       releaseToFinish: "Release to finish",
-      releaseToPublish: "Release to publish",
       published: "Your voice is published",
       publish: "Publish",
       publishing: "Publishing...",
@@ -116,16 +113,16 @@ export const strings = {
   },
   fr: {
     audioCard: {
-      countryFallback: "Burkina Faso",
-      neighborhoodFallback: "tout pres",
       now: "maintenant",
-      away: "d'ici",
+      distanceAway: (distance: string) => `à ${distance.replace(".", ",")}`,
       listens: (count: number) =>
-        count === 1 ? "1 ecoute" : `${count} ecoutes`,
-      reactWith: (emoji: string) => `Reagir avec ${emoji}`,
-      playVoice: "Ecouter la voix",
+        count < 2 ? `${count} écoute` : `${count} écoutes`,
+      reactWith: (emoji: string) => `Réagir avec ${emoji}`,
+      playVoice: "Écouter la voix",
       pauseVoice: "Mettre la voix en pause",
-      townFallback: "autour de toi",
+      saveVoice: "Sauvegarder la voix",
+      unsaveVoice: "Retirer des sauvegardes",
+      townFallback: "autour de vous",
     },
     categories: {
       all: "Tout",
@@ -133,82 +130,77 @@ export const strings = {
       contes: "Contes",
       contesDescription: "Histoires, légendes et voix à transmettre.",
       aroundYouDescription:
-        "Ce qui se passe tout pres. Infos, alertes, conseils et plus.",
+        "Ce qui se passe tout près. Infos, alertes, conseils et plus.",
     },
     floatingMic: {
       feed: "Fil",
       myVoices: "Mes voix",
       record: "Enregistrer",
-      saved: "Sauvegardee",
-      shareVoice: "Partage ta voix",
+      saved: "Sauvegardées",
     },
     actions: {
       cancel: "Annuler",
       delete: "Supprimer",
-      save: "Sauvegarder",
-      saved: "Sauvegardee",
     },
     feed: {
       emptyTitle: "Aucune voix ici pour l'instant",
-      emptyBody: "Essaie une autre categorie ou reviens bientot.",
-      swipeNext: "Glisse pour la voix suivante",
+      emptyBody: "Essayez une autre catégorie ou revenez bientôt.",
+      swipeNext: "Glissez pour la voix suivante",
     },
     myVoices: {
-      emptyTitle: "Aucune voix publiee",
-      emptyBody: "Les voix que tu publies vivront ici.",
+      emptyTitle: "Aucune voix publiée",
+      emptyBody: "Les voix que vous publiez apparaîtront ici.",
       deleteVoice: "Supprimer la voix",
-      deleteVoiceTitle: "Supprimer la voix ?",
-      deleteVoiceMessage: "Cette voix sera supprimee definitivement.",
-      deleteVoiceSuccess: "Voix supprimee",
-      deleteVoiceError: "Impossible de supprimer cette voix. Reessaie.",
+      deleteVoiceTitle: "Supprimer cette voix\u00a0?",
+      deleteVoiceMessage: "Cette voix sera supprimée définitivement.",
+      deleteVoiceError: "Impossible de supprimer cette voix. Réessayez.",
     },
     record: {
-      title: "Partage ta voix",
+      title: "Partagez votre voix",
       tagline: "De vraies voix. Un monde plus riche.",
-      prompt: "Qu'avez-vous en tete ?",
+      prompt: "Qu'avez-vous en tête\u00a0?",
       holdToSpeak: "Maintenez pour parler",
-      listening: "A l'ecoute...",
-      releaseToFinish: "Relachez pour terminer",
-      releaseToPublish: "Relachez pour publier",
-      published: "Ta voix est publiee",
+      listening: "Enregistrement...",
+      releaseToFinish: "Relâchez pour terminer",
+      published: "Votre voix est publiée",
       publish: "Publier",
       publishing: "Publication...",
-      publishError: "Impossible de publier. Reessaie.",
-      playPreview: "Ecouter l'apercu",
-      pausePreview: "Mettre l'apercu en pause",
+      publishError: "Impossible de publier. Réessayez.",
+      playPreview: "Écouter l'aperçu",
+      pausePreview: "Mettre l'aperçu en pause",
       recordAgain: "Recommencer",
       replace: "Remplacer",
       voiceTitleLabel: "Ajouter un titre (facultatif)",
       voiceTitlePlaceholder: "Quelques mots sur votre voix",
-      voiceTitleTooShort: "Utilise au moins 3 caracteres.",
+      voiceTitleTooShort: "Utilisez au moins 3 caractères.",
       voiceTitleCharacterCount: (count: number, max: number) =>
         `${count} / ${max}`,
       contesDurationHint: "5 minutes maximum",
       contesDurationTooLong:
         "Un conte dure 5 minutes maximum. Enregistrez-en un plus court ou choisissez Autour de vous.",
-      discardRecordingTitle: "Abandonner l'enregistrement ?",
-      discardRecordingMessage: "Votre voix non publiee sera perdue.",
+      discardRecordingTitle: "Abandonner l'enregistrement\u00a0?",
+      discardRecordingMessage: "Votre voix non publiée sera perdue.",
       keepRecording: "Garder l'enregistrement",
       discard: "Abandonner",
       supportMomentsTitle: "De vrais moments",
       supportMomentsBody: "Grands ou petits",
       supportPerspectiveTitle: "Votre point de vue",
-      supportPerspectiveBody: "Enrichit votre communaute",
+      supportPerspectiveBody: "Enrichit votre communauté",
       supportWorldTitle: "Un monde plus riche",
-      supportWorldBody: "Une voix a la fois",
+      supportWorldBody: "Une voix à la fois",
     },
     report: {
       reportVoice: "Signaler la voix",
       reportVoiceTitle: "Signaler cette voix",
-      reportReason: "Raison",
-      reportDetails: "Details",
-      reportDetailsPlaceholder: "Ajoute une courte note",
-      reportDetailsRequired: "Ajoute une courte explication.",
+      reportReason: "Motif",
+      reportDetails: "Détails",
+      reportDetailsPlaceholder: "Ajoutez une courte note",
+      reportDetailsRequired: "Ajoutez une courte explication.",
       submitReport: "Envoyer le signalement",
-      reportSubmitted: "Merci. Signalement envoye.",
-      reportError: "Impossible d'envoyer le signalement. Reessaie.",
-      alreadyReported: "Signalee",
-      reportReasonHarassment: "Harcelement ou intimidation",
+      reportSubmitted: "Merci. Signalement envoyé.",
+      reportError: "Impossible d'envoyer le signalement. Réessayez.",
+      alreadyReported: "Signalée",
+      reportReasonHarassment: "Harcèlement ou intimidation",
       reportReasonHate: "Discours haineux",
       reportReasonViolence: "Violence ou menaces",
       reportReasonSexual: "Contenu sexuel",
@@ -217,23 +209,24 @@ export const strings = {
       reportReasonOther: "Autre",
     },
     saved: {
-      loading: "Chargement des voix sauvegardees...",
-      emptyTitle: "Aucune voix sauvegardee",
-      emptyBody: "Les voix que tu veux retrouver vivront ici.",
+      loading: "Chargement des voix sauvegardées...",
+      emptyTitle: "Aucune voix sauvegardée",
+      emptyBody: "Les voix que vous voulez retrouver apparaîtront ici.",
     },
     toast: {
-      voiceIsNowPartOf: "Ta voix fait maintenant partie de",
+      voiceIsNowPartOf: "Votre voix fait maintenant partie de",
       place: "Hoboken",
       close: "Fermer",
     },
   },
 } as const;
 
+// Language follows the device/app language only (fr, fr-FR, fr-BF, fr-CA...
+// resolve to French; everything else to English). Never location.
 function getDeviceLanguage(): Language {
-  const locale = Intl.DateTimeFormat().resolvedOptions().locale;
-  const language = locale?.split("-")[0];
+  const languageCode = getLocales()[0]?.languageCode?.toLowerCase();
 
-  return language === "fr" ? "fr" : "en";
+  return languageCode === "fr" ? "fr" : "en";
 }
 
 function getDefaultLanguage(): Language {
